@@ -1,0 +1,8 @@
+node_modules/
+.next/
+out/
+.venv/
+uv.lock
+package-lock.json
+docs/spec.md
+database/migrations/versions/
