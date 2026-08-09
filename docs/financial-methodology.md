@@ -86,14 +86,17 @@ Still open, and answered when the quality engine is built:
 
 ---
 
-## Open question B — the period entity
+## Question B — the period entity
 
-`CalculatedMetric.analysis_period_id`, `Signal.period_id`, `Pattern.period_id`
-and `WatchItem.created_from_period_id` all reference an entity that spec
-section 11 never defines. It needs an explicit model covering company, fiscal
-year, fiscal quarter, duration kind and start/end dates.
+**Decided.** `analysis_period` is a table, referenced by foreign key from every
+table that needs a period, rather than a set of columns repeated in each one.
 
-**Unresolved.**
+The reason is enforcement rather than tidiness: if the period lives in one
+place, the same quarter cannot be recorded as a discrete quarter in one table
+and as a year-to-date window in another, which is the mixing spec section 14.6
+forbids. Two check constraints mirror `FiscalPeriod.__post_init__`, so an
+instant cannot carry a duration kind and a duration cannot exist without a
+start — even for a row written outside the application.
 
 ---
 

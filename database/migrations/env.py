@@ -9,19 +9,20 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import database.models  # noqa: F401  -- registers every model on Base.metadata
 from database.base import Base
 from database.config import get_database_settings
-
-# Importing model modules here registers them on Base.metadata for autogenerate.
-# The canonical financial schema is designed in phase 2, after the MAGNA payload
-# has been inspected (spec section 52, Task D). Nothing to import yet.
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", get_database_settings().database_url)
+# A URL supplied by the caller wins, so the test suite can migrate its own
+# database without touching the developer's. Otherwise it comes from the
+# environment, never from a value committed to the repository.
+if not config.get_main_option("sqlalchemy.url", None):
+    config.set_main_option("sqlalchemy.url", get_database_settings().database_url)
 
 target_metadata = Base.metadata
 
