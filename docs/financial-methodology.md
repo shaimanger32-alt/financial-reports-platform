@@ -9,27 +9,60 @@ Nothing here is settled by an engineer alone. Spec section 0, rule 8 requires
 thresholds to be configurable and versioned; this file is where their meaning is
 justified.
 
-Status: **empty by design.** Phase 0 ships no financial logic. The sections
+Status: **no financial logic yet.** Phases 0 and 1 are complete; the sections
 below are the questions that must be answered before phases 2 to 4 can proceed.
+Everything under "What the phase 1 spike established" is measured, not assumed.
 
 ---
 
-## Open question A — deriving quarters from cumulative reports
+## What the phase 1 spike established
+
+Observed directly against the MAGNA API on 2026-08-09, sample: Matrix IT
+(registrar 520039413), 2022-2025, plus a coverage survey of all entities.
+
+**Periods arrive in both cumulative and discrete form.** A single result set
+contains `01/01/2023 - 30/06/2023` (year to date) _and_
+`01/04/2023 - 30/06/2023` (the quarter alone). Balance sheet items arrive as a
+single date. The instant/duration distinction is therefore recoverable from the
+payload and does not have to be inferred.
+
+**Only Q4 has to be derived.** Q1 is cumulative and discrete at once. Q2 and Q3
+are reported discretely. Q4 never is, so `Q4 = FY - 9M` is unavoidable. The
+derivation was validated against the quarters that _are_ reported:
+
+| Year | `H1 - Q1` | reported Q2  | `9M - H1` | reported Q3  |
+| ---- | --------- | ------------ | --------- | ------------ |
+| 2023 | 1,286,742 | 1,286,742 ✅ | 1,333,520 | 1,333,520 ✅ |
+| 2024 | 1,332,732 | 1,332,732 ✅ | 1,418,810 | 1,418,810 ✅ |
+
+(ILS thousands, `ifrs-full:Revenue`.)
+
+**Restatements are real and common enough to matter.** Matrix IT's total assets
+were restated downward in two periods, discovered by comparing the same fact
+across filings. Any pipeline that takes the first value it sees will be wrong.
+
+**A fact repeats across filings.** Each filing carries comparatives, so one fact
+appeared in up to 24 filings in the sample. Deduplication with lineage is a
+correctness requirement, not an optimisation.
+
+**Coverage of a single tag is not coverage of a metric.** Only 4 of 39 entities
+report `ifrs-full:TradeAndOtherCurrentReceivables`, while the taxonomy carries at
+least six receivables concepts. DSO and the receivables growth gap — the inputs
+to pattern P1 — depend on resolving this.
+
+**The universe is 41 entities.** After excluding financial services, real estate,
+holdings, oil and gas and biotech, roughly 20 are usable. Enough for the MVP
+(5-10) and for v1 (10+), but the ceiling is low.
+
+---
+
+## Open question A — deriving Q4, and reconciling reported against derived
 
 **Severity: highest. Everything downstream depends on it.**
 
-Israeli issuers report Q1, H1, 9M and a full year. Q2, Q3 and Q4 are therefore
-not reported as quarters and must be derived:
-
-```
-Q2 = H1  - Q1
-Q3 = 9M  - H1
-Q4 = FY  - 9M
-```
-
-Almost every core metric depends on those derived figures: every TTM aggregate,
-Cash Conversion, the Accruals proxy, DSO/DIO/DPO, Interest Coverage and Asset
-Turnover.
+Reduced in scope by the spike, not eliminated. `Q4 = FY - 9M` is always needed,
+and every TTM aggregate, Cash Conversion, the Accruals proxy, DSO/DIO/DPO,
+Interest Coverage and Asset Turnover depends on it.
 
 Spec section 11.3 requires the derivation to be explicit and provenanced, but
 does not say where the result lives. Two candidates:
@@ -38,7 +71,12 @@ does not say where the result lives. Two candidates:
    was computed from.
 2. A `CalculatedMetric`, leaving `FinancialFact` strictly as-reported.
 
-Related sub-questions:
+New sub-question raised by the spike: when a quarter is **both** reported and
+derivable and the two disagree, which wins, and is the disagreement surfaced?
+They matched exactly in every sample checked, which is evidence but not a
+guarantee.
+
+Remaining sub-questions:
 
 - What happens when a required cumulative period is missing or restated?
 - Balance sheet items are instants and must never be differenced this way. How
@@ -94,6 +132,50 @@ Sections 30 and 31 list the factors to weigh — materiality, magnitude versus o
 history, corroborating signals, persistence, evidence strength, severity — but
 not how to combine them. The score is for ordering only and is never shown as a
 company grade.
+
+**Unresolved.**
+
+---
+
+## Open question F — restatement policy
+
+Raised by the phase 1 spike, which found two genuine restatements in the first
+company examined:
+
+| Concept            | Period     | Earlier filing | Later filing      |
+| ------------------ | ---------- | -------------- | ----------------- |
+| `ifrs-full:Assets` | 30/09/2023 | 3,928,894,000  | **3,882,556,000** |
+| `ifrs-full:Assets` | 31/12/2023 | 4,084,180,000  | **4,035,232,000** |
+
+Three decisions are needed:
+
+1. Which value is presented — always the most recent, or the one as reported at
+   the time of the period being viewed?
+2. Is the change surfaced to the user, and if so where? Spec section 21.3
+   requires a comparability warning; this is that case.
+3. **MAGNA supplies no publication date.** Recency can only be inferred from the
+   reference number (`2024-01-616266` later than `2024-01-023212`). The ordering
+   held across every sample, but it is an undocumented convention. Is inferring
+   recency from it acceptable, or must a publication date be sourced elsewhere
+   before restatement logic is trusted?
+
+**Unresolved.**
+
+---
+
+## Open question G — how deep the normalisation goes
+
+Spec section 12 requires mapping raw concepts to canonical metrics and allows
+company-specific overrides. The spike quantified the cost: receivables alone is
+spread across at least six concepts, and only 4 of 39 entities use the one the
+metric definitions would naively pick.
+
+The trade-off:
+
+- Map per company, and DSO, the receivables growth gap and pattern P1 work
+  broadly — at the cost of manual mapping that grows with each company added.
+- Map only the standard concept, and those metrics are `null` for most
+  companies — honest under section 4.4, but P1 rarely fires.
 
 **Unresolved.**
 

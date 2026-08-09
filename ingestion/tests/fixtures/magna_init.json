@@ -1,0 +1,140 @@
+{
+  "totalReports": 364,
+  "totalEntities": 41,
+  "entities": [
+    {
+      "_id": "513618967",
+      "name": "מקס סטוק בע\"מ",
+      "branch_id": 9400,
+      "name_en": null
+    },
+    {
+      "_id": "520031931",
+      "name": "בזק החברה הישראלית לתקשורת בע\"מ",
+      "branch_id": 9400,
+      "name_en": "BEZEQ THE ISRAEL TELECOMMUNICATION CORP. LTD"
+    },
+    {
+      "_id": "520034356",
+      "name": "אי.בי.אי. בית השקעות בע\"מ",
+      "branch_id": 8400,
+      "name_en": "I.B.I. INVESTMENT HOUSE LTD"
+    },
+    {
+      "_id": "520039413",
+      "name": "מטריקס אי.טי. בע\"מ",
+      "branch_id": 8800,
+      "name_en": "MATRIX IT LTD"
+    },
+    {
+      "_id": "520039942",
+      "name": "חילן בע\"מ",
+      "branch_id": 8800,
+      "name_en": "HILAN LTD"
+    }
+  ],
+  "branches": [
+    {
+      "_id": 8400,
+      "name": "שרותים פיננסיים",
+      "name_en": "FINANCIAL SERVICES"
+    },
+    {
+      "_id": 8700,
+      "name": "ביומד",
+      "name_en": "ביומד"
+    },
+    {
+      "_id": 8800,
+      "name": "טכנולוגיה",
+      "name_en": "TECHNOLOGY"
+    },
+    {
+      "_id": 9400,
+      "name": "מסחר ושרותים",
+      "name_en": "COMMERCE & SERVICES"
+    },
+    {
+      "_id": 9500,
+      "name": "נדל\"ן ובנייה",
+      "name_en": "REAL-ESTATE & CONSTRUCTION"
+    },
+    {
+      "_id": 9600,
+      "name": "תעשיה",
+      "name_en": "INDUSTRY"
+    },
+    {
+      "_id": 9700,
+      "name": "השקעה ואחזקות",
+      "name_en": "INVESTMENT & HOLDINGS"
+    },
+    {
+      "_id": 9800,
+      "name": "חיפושי נפט וגז",
+      "name_en": "OIL & GAS EXPLORATION"
+    }
+  ],
+  "tags": [
+    {
+      "name": "ifrs-full:TradeAndOtherCurrentReceivables",
+      "label": "ifrs-full:TradeAndOtherCurrentReceivables"
+    },
+    {
+      "name": "ifrs-full:TradeAndOtherCurrentReceivables",
+      "label": "Trade and other current receivables"
+    },
+    {
+      "name": "ifrs-full:GrossProfit",
+      "label": "ifrs-full:GrossProfit"
+    },
+    {
+      "name": "ifrs-full:Revenue",
+      "label": "Revenue"
+    },
+    {
+      "name": "ifrs-full:Assets",
+      "label": "ifrs-full:Assets"
+    },
+    {
+      "name": "ifrs-full:CurrentTradeReceivables",
+      "label": "Current trade receivables"
+    },
+    {
+      "name": "ifrs-full:Assets",
+      "label": "Assets"
+    },
+    {
+      "name": "ifrs-full:CurrentTradeReceivables",
+      "label": "ifrs-full:CurrentTradeReceivables"
+    },
+    {
+      "name": "ifrs-full:Revenue",
+      "label": "ifrs-full:Revenue"
+    },
+    {
+      "name": "ifrs-full:GrossProfit",
+      "label": "Gross profit"
+    },
+    {
+      "name": "elco:Purchaseofinvestmentpropertyunderconstructionordevelopmentandininvestmentproperty",
+      "label": "השקעה בנדל\"ן להשקעה ונדל\"ן להשקעה בהקמה"
+    },
+    {
+      "name": "elco:Receiptsfromroyaltiessuccessfeescommissionsandotherrevenue",
+      "label": "קיטון (גידול) בהכנסות מדמי הצלחה (Promote)"
+    },
+    {
+      "name": "plasson:RevenuefromsalesinIsrael",
+      "label": "Revenue from sales in Israel"
+    },
+    {
+      "name": "denya-gr:CashflowfromusedinDecreaseIncreaseinshortterminvestment",
+      "label": "ניירות ערך סחירים, נטו"
+    },
+    {
+      "name": "afi-prop:Grossprofitinvestmentproperty",
+      "label": "רווח גולמי מהשכרת והפעלת נכסים"
+    }
+  ]
+}

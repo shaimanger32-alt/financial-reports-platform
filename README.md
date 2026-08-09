@@ -16,9 +16,14 @@ First market: Israel (MAGNA/XBRL). Web first, iPhone once the core is stable.
 
 ## Status
 
-**Phase 0 — engineering foundation.** No financial logic yet. There is no
-canonical schema: it is designed in phase 2, after the MAGNA payload has been
-inspected in phase 1 (spec section 52, Task D).
+**Phase 1 complete — MAGNA spike.** The provider client is read-only and
+working; the exploration CLI reaches the live API. Still no financial logic and
+no canonical schema: both are designed in phase 2, now informed by the real
+payload rather than by assumptions (spec section 52, Task D).
+
+What the spike measured — period shapes, restatements, concept coverage and the
+size of the usable universe — is recorded in
+[`docs/financial-methodology.md`](docs/financial-methodology.md).
 
 ## Layout
 
@@ -99,3 +104,22 @@ Tests marked `integration` need a live database and are skipped when
 `DATABASE_URL` is unset.
 
 Run `make help` for every target.
+
+## Exploring the MAGNA provider
+
+Read-only. Nothing writes to the database yet.
+
+```bash
+uv run --env-file .env python -m ingestion.cli entities
+```
+
+```bash
+uv run --env-file .env python -m ingestion.cli concepts --contains receivable
+```
+
+```bash
+uv run --env-file .env python -m ingestion.cli facts --entity 520039413 --from-year 2022 --to-year 2025
+```
+
+`--archive` writes the raw payload to `data/raw/` (git-ignored), content-addressed
+so re-fetching the same payload is a no-op.

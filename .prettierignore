@@ -6,3 +6,8 @@ uv.lock
 package-lock.json
 docs/spec.md
 database/migrations/versions/
+
+# Provider payload fixtures are captured verbatim. Reformatting them would
+# change bytes that tests and content hashes depend on.
+ingestion/tests/fixtures/
+data/

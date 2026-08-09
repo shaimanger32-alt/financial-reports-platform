@@ -336,6 +336,7 @@ dependencies = [
     { name = "fri-database" },
     { name = "fri-financial-core" },
     { name = "httpx" },
+    { name = "pydantic-settings" },
 ]
 
 [package.metadata]
@@ -343,6 +344,7 @@ requires-dist = [
     { name = "fri-database", editable = "database" },
     { name = "fri-financial-core", editable = "financial_core" },
     { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic-settings", specifier = ">=2.4" },
 ]
 
 [[package]]
