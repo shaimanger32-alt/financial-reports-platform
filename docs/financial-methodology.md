@@ -9,8 +9,9 @@ Nothing here is settled by an engineer alone. Spec section 0, rule 8 requires
 thresholds to be configurable and versioned; this file is where their meaning is
 justified.
 
-Status: **no financial logic yet.** Phases 0 and 1 are complete; the sections
-below are the questions that must be answered before phases 2 to 4 can proceed.
+Status: **phase 2 in progress.** Questions A, F and G are decided (see
+[0009](decisions/0009-reported-and-derived-are-both-kept.md)) and the period
+model is implemented. B to E remain open and block phases 2 to 4.
 Everything under "What the phase 1 spike established" is measured, not assumed.
 
 ---
@@ -56,34 +57,32 @@ holdings, oil and gas and biotech, roughly 20 are usable. Enough for the MVP
 
 ---
 
-## Open question A — deriving Q4, and reconciling reported against derived
+## Question A — deriving Q4, and reconciling reported against derived
 
-**Severity: highest. Everything downstream depends on it.**
+**Decided — see [0009](decisions/0009-reported-and-derived-are-both-kept.md).**
+Both the reported quarter and our derived one are stored, distinguished by
+`origin`, with the derivation's inputs recorded. A disagreement is surfaced,
+never resolved silently.
 
-Reduced in scope by the spike, not eliminated. `Q4 = FY - 9M` is always needed,
-and every TTM aggregate, Cash Conversion, the Accruals proxy, DSO/DIO/DPO,
-Interest Coverage and Asset Turnover depends on it.
+`Q4 = FY - 9M` is always needed, and every TTM aggregate, Cash Conversion, the
+Accruals proxy, DSO/DIO/DPO, Interest Coverage and Asset Turnover depends on it.
 
-Spec section 11.3 requires the derivation to be explicit and provenanced, but
-does not say where the result lives. Two candidates:
+Implemented in `financial_core/periods`:
 
-1. A `FinancialFact` row flagged as derived, carrying references to the facts it
-   was computed from.
-2. A `CalculatedMetric`, leaving `FinancialFact` strictly as-reported.
+- `classify` refuses to assign a quarter to a date range that does not align to
+  calendar quarter boundaries. Unclassified is a usable answer; a wrong quarter
+  is not.
+- `derive_quarter` returns `None` when any input is missing, rather than
+  treating the gap as zero.
+- `derive_quarter_for_flow` raises if asked to difference a balance sheet
+  instant, so the stock/flow rule cannot be forgotten at a call site.
+- `reconcile` compares the issuer's quarter against ours and reports agreement
+  without choosing a winner.
 
-New sub-question raised by the spike: when a quarter is **both** reported and
-derivable and the two disagree, which wins, and is the disagreement surfaced?
-They matched exactly in every sample checked, which is evidence but not a
-guarantee.
-
-Remaining sub-questions:
+Still open, and answered when the quality engine is built:
 
 - What happens when a required cumulative period is missing or restated?
-- Balance sheet items are instants and must never be differenced this way. How
-  is that enforced rather than merely documented?
 - Does a derived quarter inherit the `quality_status` of its weakest input?
-
-**Unresolved.**
 
 ---
 
@@ -137,7 +136,11 @@ company grade.
 
 ---
 
-## Open question F — restatement policy
+## Question F — restatement policy
+
+**Decided — see [0009](decisions/0009-reported-and-derived-are-both-kept.md).**
+Recency is inferred from the reference number and labelled as inferred. What
+MAGNA does not supply is shown as "not provided by the source".
 
 Raised by the phase 1 spike, which found two genuine restatements in the first
 company examined:
@@ -147,37 +150,33 @@ company examined:
 | `ifrs-full:Assets` | 30/09/2023 | 3,928,894,000  | **3,882,556,000** |
 | `ifrs-full:Assets` | 31/12/2023 | 4,084,180,000  | **4,035,232,000** |
 
-Three decisions are needed:
+MAGNA supplies no publication date, so recency is inferred from the reference
+number (`2024-01-616266` is later than `2024-01-023212`). The ordering held
+across every sample in the spike, but it is an undocumented convention and is
+stored as inferred, not as fact. A provider that supplies real publication dates
+replaces the inference without touching the financial core.
 
-1. Which value is presented — always the most recent, or the one as reported at
-   the time of the period being viewed?
-2. Is the change surfaced to the user, and if so where? Spec section 21.3
-   requires a comparability warning; this is that case.
-3. **MAGNA supplies no publication date.** Recency can only be inferred from the
-   reference number (`2024-01-616266` later than `2024-01-023212`). The ordering
-   held across every sample, but it is an undocumented convention. Is inferring
-   recency from it acceptable, or must a publication date be sourced elsewhere
-   before restatement logic is trusted?
-
-**Unresolved.**
+Both values are kept. Which one a given screen shows, and how the change is
+worded, is a phase 5 presentation question — the data supports either.
 
 ---
 
-## Open question G — how deep the normalisation goes
+## Question G — how deep the normalisation goes
+
+**Decided — see [0009](decisions/0009-reported-and-derived-are-both-kept.md).**
+An ordered concept fallback chain per canonical metric, with per-company
+overrides as an escape hatch, and the concept actually used stored on the fact.
 
 Spec section 12 requires mapping raw concepts to canonical metrics and allows
 company-specific overrides. The spike quantified the cost: receivables alone is
 spread across at least six concepts, and only 4 of 39 entities use the one the
 metric definitions would naively pick.
 
-The trade-off:
-
-- Map per company, and DSO, the receivables growth gap and pattern P1 work
-  broadly — at the cost of manual mapping that grows with each company added.
-- Map only the standard concept, and those metrics are `null` for most
-  companies — honest under section 4.4, but P1 rarely fires.
-
-**Unresolved.**
+Mapping only the single standard concept was rejected: it is honest under
+section 4.4, but it would leave DSO, the receivables growth gap and pattern P1
+`null` for almost every company, removing the core differentiation rather than
+protecting it. The chain is defined per metric, so the cost does not grow with
+each company added; per-company overrides handle extensions only.
 
 ---
 
