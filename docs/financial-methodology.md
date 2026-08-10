@@ -177,6 +177,24 @@ once coverage allows.
 
 **Unresolved.**
 
+### One threshold had to be chosen to build the metric engine
+
+Section 13.3 requires cash conversion to be computed only when trailing net
+income is "positive and material", without saying what material means. Refusing
+to pick a level would have made the metric permanently null, so a provisional
+one is in the code:
+
+```
+CASH_CONVERSION_MATERIALITY = 0.01   # 1% of trailing revenue
+```
+
+Below that, the ratio is `null` with an `immaterial_denominator` warning rather
+than an enormous number produced by a denominator near zero.
+
+**This value is a placeholder and needs confirming.** It is a named constant in
+`financial_core/metrics/formulas.py` under formula version `v1`, so changing it
+is a version change and not a silent edit.
+
 ---
 
 ## Open question E — materiality and insight ranking
