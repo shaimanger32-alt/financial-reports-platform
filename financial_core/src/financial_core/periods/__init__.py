@@ -20,6 +20,7 @@ from financial_core.periods.derivation import (
     derive_quarter_for_flow,
     discrete_period,
     reconcile,
+    rounding_tolerance,
     values_agree,
 )
 from financial_core.periods.model import (
@@ -51,5 +52,6 @@ __all__ = [
     "quarter_of_end_date",
     "quarter_start",
     "reconcile",
+    "rounding_tolerance",
     "values_agree",
 ]

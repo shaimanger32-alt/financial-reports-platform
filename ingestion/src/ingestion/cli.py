@@ -14,11 +14,19 @@ import logging
 import sys
 from collections.abc import Sequence
 
+from database import session_scope
 from ingestion.archive import RawArchive
 from ingestion.config import get_ingestion_settings
 from ingestion.core_concepts import CORE_CONCEPTS
+from ingestion.pipelines.magna import ingest_batch
 from ingestion.providers.base import FactQuery, ProviderFact
-from ingestion.providers.magna_xbrl import MagnaXbrlClient, distinct_filings, find_conflicts
+from ingestion.providers.magna_xbrl import (
+    MagnaXbrlClient,
+    all_mapped_concepts,
+    distinct_filings,
+    find_conflicts,
+)
+from ingestion.seeding import seed_reference_data
 
 logger = logging.getLogger("ingestion.cli")
 
@@ -160,6 +168,77 @@ def cmd_facts(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ingest(args: argparse.Namespace) -> int:
+    with MagnaXbrlClient() as client:
+        entities = {e.provider_entity_id: e for e in client.list_entities()}
+        entity = entities.get(args.entity)
+        if entity is None:
+            print(f"unknown entity {args.entity}; try `entities` to list them")
+            return 1
+
+        batch = client.fetch_facts(
+            FactQuery(
+                entity_ids=(args.entity,),
+                concepts=all_mapped_concepts(),
+                from_year=args.from_year,
+                to_year=args.to_year,
+            )
+        )
+
+    if args.archive:
+        _archive(batch.raw_payload, "search", batch.source_reference)
+
+    with session_scope() as session:
+        seed = seed_reference_data(session)
+        report = ingest_batch(session, entity, batch)
+
+    print(f"\n{entity.name_en or entity.name}")
+    print(f"  reference data   {seed.metrics} metrics, {seed.mappings} mappings")
+    print(f"  filings          {report.filings}")
+    print(f"  periods          {report.periods}")
+    print(f"  reported facts   {report.reported_facts}")
+    print(f"  derived facts    {report.derived_facts}")
+    print(f"  without a value  {report.facts_without_value}")
+    if report.mixed_vintage_derivations:
+        print(
+            f"  cross-filing     {report.mixed_vintage_derivations} derivations "
+            f"(inputs from different filings, flagged usable_with_warning)"
+        )
+
+    if report.skipped_unclassifiable_periods:
+        print(
+            f"  skipped periods  {report.skipped_unclassifiable_periods} (not a calendar quarter)"
+        )
+    if report.unmapped_concepts:
+        print(f"  unmapped         {len(report.unmapped_concepts)} concepts stored raw")
+
+    if report.restatements:
+        print(f"\nrestatements ({len(report.restatements)}):")
+        for restatement in report.restatements:
+            print(
+                f"    {restatement.concept} @ {restatement.period_code}: "
+                f"{restatement.earlier_value:,.0f} ({restatement.earlier_filing}) -> "
+                f"{restatement.later_value:,.0f} ({restatement.later_filing})"
+            )
+
+    if report.derivation_mismatches:
+        print(
+            f"\nderived quarters disagreeing with the issuer ({len(report.derivation_mismatches)}):"
+        )
+        for mismatch in report.derivation_mismatches:
+            print(
+                f"    {mismatch.concept} @ {mismatch.period_code}: "
+                f"reported {mismatch.reported:,.0f}, derived {mismatch.derived:,.0f}"
+            )
+
+    if report.unrecognised_references:
+        print(
+            f"\nfiling references of an unexpected shape: {sorted(report.unrecognised_references)}"
+        )
+
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ingestion.cli", description=__doc__)
     parser.add_argument("--verbose", action="store_true", help="log HTTP and parsing detail")
@@ -185,6 +264,13 @@ def build_parser() -> argparse.ArgumentParser:
     facts.add_argument("--to-year", type=int, required=True)
     facts.add_argument("--archive", action="store_true")
     facts.set_defaults(func=cmd_facts)
+
+    ingest = sub.add_parser("ingest", help="load one company into the canonical store")
+    ingest.add_argument("--entity", required=True, help="registrar number, e.g. 520039413")
+    ingest.add_argument("--from-year", type=int, required=True)
+    ingest.add_argument("--to-year", type=int, required=True)
+    ingest.add_argument("--archive", action="store_true")
+    ingest.set_defaults(func=cmd_ingest)
 
     return parser
 

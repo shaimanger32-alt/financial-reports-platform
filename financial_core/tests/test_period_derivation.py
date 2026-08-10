@@ -18,6 +18,7 @@ from financial_core.periods import (
     derive_quarter_for_flow,
     discrete_period,
     reconcile,
+    rounding_tolerance,
     values_agree,
 )
 
@@ -175,3 +176,35 @@ def test_reconciliation_concludes_nothing_when_a_side_is_missing() -> None:
 def test_agreement_tolerates_float_noise_but_not_real_differences() -> None:
     assert values_agree(5_232_105_000.0, 5_232_105_000.0000001)
     assert not values_agree(5_232_105_000.0, 5_232_106_000.0)
+
+
+def test_rounding_tolerance_follows_the_tagging_granularity() -> None:
+    """A figure tagged to the nearest thousand carries thousand-scale rounding."""
+    assert rounding_tolerance(-3) == 1_500.0
+    assert rounding_tolerance(-6) == 1_500_000.0
+    assert rounding_tolerance(0) == 1.0
+    assert rounding_tolerance(None) == 1.0
+
+
+def test_tagging_granularity_is_not_a_disagreement() -> None:
+    """Matrix IT's Q2 2023 profit: 62,822,000 reported, 62,823,000 derived.
+
+    Two cumulative figures rounded to the nearest thousand were subtracted, so a
+    gap of one thousand is arithmetic, not error. Flagging it would raise a false
+    alarm on a sound figure.
+    """
+    period = discrete_period(2023, 2)
+
+    naive = reconcile(period, reported=62_822_000, derived=62_823_000)
+    aware = reconcile(period, reported=62_822_000, derived=62_823_000, decimals=-3)
+
+    assert naive.agrees is False
+    assert aware.agrees is True
+
+
+def test_a_real_disagreement_still_fails_at_thousand_granularity() -> None:
+    period = discrete_period(2023, 2)
+
+    result = reconcile(period, reported=62_822_000, derived=61_000_000, decimals=-3)
+
+    assert result.agrees is False

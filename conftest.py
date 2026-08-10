@@ -1,4 +1,4 @@
-"""Database fixtures.
+"""Shared database fixtures, available to every package's tests.
 
 The schema under test is built by running the real migrations, not by
 `create_all`. A migration that cannot produce the schema is a migration that
@@ -15,7 +15,7 @@ from alembic.config import Config
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parent
 ALEMBIC_INI = REPO_ROOT / "database" / "alembic.ini"
 
 

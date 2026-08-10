@@ -93,9 +93,46 @@ Implemented in `financial_core/periods`:
 - `reconcile` compares the issuer's quarter against ours and reports agreement
   without choosing a winner.
 
-Still open, and answered when the quality engine is built:
+### Q4 is always assembled from two filings
 
-- What happens when a required cumulative period is missing or restated?
+Found while ingesting real data, and it changes how much confidence a Q4 figure
+can carry.
+
+A filing tags the periods it is about. The third-quarter report tags nine months
+and the quarter; the annual report tags the year and the prior year. **No filing
+carries both a full year and the preceding nine months**, so `Q4 = FY - 9M`
+always draws its two inputs from two different filings.
+
+That matters because filings do not always agree with each other. Hilan's 2022
+finance costs, tagged across three of its own filings:
+
+| Filing         | Figures                              |
+| -------------- | ------------------------------------ |
+| 2023-01-130443 | Q1 = 7,568,000                       |
+| 2023-01-130455 | YTD-Q2 = 18,694,000, Q2 = 11,613,000 |
+| 2023-01-130497 | YTD-Q3 = 20,199,000, Q3 = 6,102,000  |
+
+The nine-month filing implies YTD-Q2 = 14,097,000, while the half-year filing
+says 18,694,000. Hilan reclassified something and did not re-tag the earlier
+period. Differencing across the two produces a Q3 of 1,505,000 against the
+6,102,000 the issuer states — nearly four times too small.
+
+The rule this produced:
+
+- A derivation takes both inputs from **one filing** whenever a filing carries
+  both, because a single filing is internally consistent.
+- When no filing carries both, the derivation still happens and is stored as
+  `usable_with_warning`. It is analysable, and it may not support a
+  high-confidence finding.
+- Q4 is therefore always `usable_with_warning`. That is a property of the
+  source, not a defect in the calculation.
+
+### Still open
+
+Answered when the quality engine is built:
+
+- Should a cross-filing derivation be suppressed entirely when the two filings
+  are known to disagree elsewhere on the same concept?
 - Does a derived quarter inherit the `quality_status` of its weakest input?
 
 ---

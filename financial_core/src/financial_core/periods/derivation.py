@@ -148,9 +148,36 @@ def derive_quarter_for_flow(
     return derive_quarter(fiscal_year, quarter, lookup)
 
 
-def values_agree(left: float, right: float) -> bool:
-    """Whether a reported and a derived figure are the same number."""
-    return abs(left - right) <= max(ABSOLUTE_TOLERANCE, RELATIVE_TOLERANCE * abs(right))
+def rounding_tolerance(decimals: int | None) -> float:
+    """How far a derived quarter may sit from the issuer's own, from rounding alone.
+
+    Filings are tagged with an XBRL `decimals` attribute. A value of -3 means the
+    figure is stated to the nearest thousand, so it carries up to half a thousand
+    of rounding error.
+
+    A derived quarter subtracts two rounded cumulative figures, so it inherits up
+    to a full unit of granularity of error. The issuer's own quarter is rounded
+    too, adding another half. The bound is therefore one and a half units, and
+    anything inside it is rounding rather than disagreement.
+
+    This is why the check exists at all: Matrix IT's Q2 2023 profit is 62,822,000
+    as reported and 62,823,000 as derived. That gap is the tagging granularity,
+    not an arithmetic error, and treating it as one would raise a false alarm on
+    a perfectly sound figure.
+    """
+    if decimals is None or decimals >= 0:
+        return ABSOLUTE_TOLERANCE
+    return 1.5 * float(10 ** abs(decimals))
+
+
+def values_agree(left: float, right: float, absolute_tolerance: float | None = None) -> bool:
+    """Whether a reported and a derived figure are the same number.
+
+    `absolute_tolerance` should be the reporting granularity when it is known;
+    see `rounding_tolerance`. Without it the comparison is effectively exact.
+    """
+    floor = ABSOLUTE_TOLERANCE if absolute_tolerance is None else absolute_tolerance
+    return abs(left - right) <= max(floor, RELATIVE_TOLERANCE * abs(right))
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,11 +201,19 @@ def reconcile(
     period: FiscalPeriod,
     reported: float | None,
     derived: float | None,
+    decimals: int | None = None,
 ) -> Reconciliation:
     """Compare the reported quarter with the derived one.
 
-    A disagreement is not resolved here. It is reported, so the data-quality
+    `decimals` is the XBRL rounding attribute of the source figures. Passing it
+    keeps the comparison from flagging tagging granularity as disagreement.
+
+    A real disagreement is not resolved here. It is reported, so the data-quality
     layer can flag it and the user can be shown both figures (decision 0009).
     """
-    agrees = None if reported is None or derived is None else values_agree(reported, derived)
+    agrees = (
+        None
+        if reported is None or derived is None
+        else values_agree(reported, derived, rounding_tolerance(decimals))
+    )
     return Reconciliation(period=period, reported=reported, derived=derived, agrees=agrees)
