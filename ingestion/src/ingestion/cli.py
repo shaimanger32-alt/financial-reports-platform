@@ -15,6 +15,9 @@ import sys
 from collections.abc import Sequence
 
 from database import session_scope
+from database.repository import find_company, load_fact_set
+from financial_core.metrics import CALCULATED_BY_CODE, compute_all
+from financial_core.periods import cumulative_period, discrete_period
 from ingestion.archive import RawArchive
 from ingestion.config import get_ingestion_settings
 from ingestion.core_concepts import CORE_CONCEPTS
@@ -239,6 +242,47 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_metrics(args: argparse.Namespace) -> int:
+    """Print every computed metric for one period, so it can be checked by hand."""
+    with session_scope() as session:
+        company = find_company(session, args.entity)
+        if company is None:
+            print(f"{args.entity} has not been ingested; run `ingest` first")
+            return 1
+
+        facts = load_fact_set(session, company.id)
+        period = (
+            cumulative_period(args.year, args.quarter)
+            if args.cumulative
+            else discrete_period(args.year, args.quarter)
+        )
+        results = compute_all(facts, period)
+        name = company.name_en or company.display_name
+
+    print(f"\n{name} — {period.code}   ({len(facts)} facts available)\n")
+    print(f"{'metric':<32}{'value':>18}  notes")
+    print("-" * 78)
+    for code in sorted(results):
+        result = results[code]
+        spec = CALCULATED_BY_CODE[code]
+        if result.value is None:
+            rendered = "—"
+        elif spec.unit_type == "ratio":
+            rendered = f"{result.value:,.4f}"
+        elif spec.unit_type == "days":
+            rendered = f"{result.value:,.1f} days"
+        else:
+            rendered = f"{result.value:,.0f}"
+
+        notes = ", ".join(w.value for w in result.warnings)
+        if result.value is None and result.missing_inputs:
+            notes = f"missing: {', '.join(result.missing_inputs)}"
+        print(f"{code:<32}{rendered:>18}  {notes}")
+
+    print(f"\nformula version: {next(iter(results.values())).formula_version}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ingestion.cli", description=__doc__)
     parser.add_argument("--verbose", action="store_true", help="log HTTP and parsing detail")
@@ -271,6 +315,15 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--to-year", type=int, required=True)
     ingest.add_argument("--archive", action="store_true")
     ingest.set_defaults(func=cmd_ingest)
+
+    metrics = sub.add_parser("metrics", help="computed metrics for one period, for hand checking")
+    metrics.add_argument("--entity", required=True)
+    metrics.add_argument("--year", type=int, required=True)
+    metrics.add_argument("--quarter", type=int, required=True, choices=(1, 2, 3, 4))
+    metrics.add_argument(
+        "--cumulative", action="store_true", help="year to date rather than the quarter alone"
+    )
+    metrics.set_defaults(func=cmd_metrics)
 
     return parser
 
