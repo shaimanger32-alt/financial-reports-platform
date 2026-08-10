@@ -353,10 +353,10 @@ def test_hilan_uses_a_different_receivables_concept_and_still_resolves(
     )
 
     assert concepts, "neither company resolved trade receivables"
-    assert concepts <= {
-        "ifrs-full:CurrentTradeReceivables",
-        "ifrs-full:TradeAndOtherCurrentReceivables",
-    }
+    # Both issuers also tag TradeAndOtherCurrentReceivables, and for both it is
+    # the small "other receivables" line rather than a broader trade figure. It
+    # must not reach the metric.
+    assert concepts == {"ifrs-full:CurrentTradeReceivables"}
 
 
 # -- idempotency ----------------------------------------------------------

@@ -62,15 +62,17 @@ def test_excluded_concepts_stay_out() -> None:
         assert concept not in mapped, f"{concept} was excluded on purpose"
 
 
-def test_trade_receivables_prefers_the_precise_concept() -> None:
-    """Precision before availability: the pure-trade concept leads, and the
-    broader trade-and-other concept sits behind it."""
+def test_trade_receivables_uses_only_pure_trade_concepts() -> None:
+    """Measured, not assumed: 6 of the 7 issuers that tag both use
+    `TradeAndOtherCurrentReceivables` for the much smaller "other receivables"
+    line, despite what its name says. Matrix IT tags 1,746,539,000 as trade
+    receivables and 113,123,000 there. It is not a fallback, it is a different
+    number, and using it would understate DSO by an order of magnitude."""
     chain = CONCEPT_CHAINS["trade_receivables"]
 
     assert chain[0] == "ifrs-full:CurrentTradeReceivables"
-    assert chain.index("ifrs-full:CurrentTradeReceivables") < chain.index(
-        "ifrs-full:TradeAndOtherCurrentReceivables"
-    )
+    assert "ifrs-full:TradeAndOtherCurrentReceivables" not in chain
+    assert "ifrs-full:TradeAndOtherReceivables" not in chain
 
 
 def test_trade_payables_prefers_supplier_balances() -> None:

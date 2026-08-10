@@ -65,9 +65,13 @@ CONCEPT_CHAINS: Final[dict[str, tuple[str, ...]]] = {
         "ifrs-full:CurrentTradeReceivables",  # 31, and the most precise
         "ifrs-full:TradeReceivables",  # 6
         "ifrs-full:CurrentReceivablesFromContractsWithCustomers",  # 1
-        "ifrs-full:TradeAndOtherCurrentReceivables",  # 11, includes non-trade
-        "ifrs-full:TradeAndOtherReceivables",  # 3, broadest
     ),
+    # The payables equivalent of the receivables trap, and it resolves the other
+    # way. `TradeAndOtherCurrentPayables` is used as the *smaller* line by only
+    # 2 of the 7 issuers that tag both, and 8 issuers tag nothing else -- so
+    # dropping it would cost real coverage to guard against a minority reading.
+    # It stays behind the supplier-specific concept, which wins wherever both
+    # exist. A DPO of a very few days is the symptom to watch for.
     "trade_payables": (
         "ifrs-full:TradeAndOtherCurrentPayablesToTradeSuppliers",  # 23, trade only
         "ifrs-full:TradeAndOtherCurrentPayables",  # 15
@@ -107,6 +111,18 @@ DELIBERATELY_EXCLUDED: Final[dict[str, str]] = {
     "ifrs-full:OtherCurrentReceivables": (
         "reported by 36 of 39 entities, but it is non-trade receivables; "
         "including it would inflate DSO for almost every company"
+    ),
+    "ifrs-full:TradeAndOtherCurrentReceivables": (
+        "the label says trade AND other, so it ought to be a superset of trade "
+        "receivables. Measured against issuers that tag both, 6 of 7 use it for "
+        "the much smaller 'other receivables' line instead: Matrix IT tags "
+        "1,746,539,000 as CurrentTradeReceivables and 113,123,000 here. Using it "
+        "as a fallback would understate DSO by an order of magnitude. Only four "
+        "entities rely on it alone, and all four are outside the MVP universe"
+    ),
+    "ifrs-full:TradeAndOtherReceivables": (
+        "same ambiguity, and no entity relies on it alone, so it adds risk "
+        "without adding a single company's coverage"
     ),
     "ifrs-full:Liabilities": (
         "total liabilities, tagged by only 13 entities; current and non-current "

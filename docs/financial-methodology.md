@@ -46,24 +46,42 @@ across filings. Any pipeline that takes the first value it sees will be wrong.
 appeared in up to 24 filings in the sample. Deduplication with lineage is a
 correctness requirement, not an optimisation.
 
-**Coverage of a single tag is not coverage of a metric.** The phase 1 probe used
+**A tag's name is not its meaning.** The phase 1 probe used
 `ifrs-full:TradeAndOtherCurrentReceivables` and found it almost empty. A full
-sweep of all six receivables concepts across all thirty-nine entities, run on
-2026-08-09, shows why:
+sweep of all six receivables concepts across all thirty-nine entities showed
+something worse than sparse coverage:
 
-| Concept                                                  | Entities | In the chain?      |
-| -------------------------------------------------------- | -------- | ------------------ |
-| `ifrs-full:OtherCurrentReceivables`                      | 36       | **No** — not trade |
-| `ifrs-full:CurrentTradeReceivables`                      | 31       | Yes, first         |
-| `ifrs-full:TradeAndOtherCurrentReceivables`              | 11       | Yes, fourth        |
-| `ifrs-full:TradeReceivables`                             | 6        | Yes, second        |
-| `ifrs-full:TradeAndOtherReceivables`                     | 3        | Yes, fifth         |
-| `ifrs-full:CurrentReceivablesFromContractsWithCustomers` | 1        | Yes, third         |
+| Concept                                                  | Entities | In the chain?         |
+| -------------------------------------------------------- | -------- | --------------------- |
+| `ifrs-full:OtherCurrentReceivables`                      | 36       | **No** — not trade    |
+| `ifrs-full:CurrentTradeReceivables`                      | 31       | Yes, first            |
+| `ifrs-full:TradeAndOtherCurrentReceivables`              | 11       | **No** — see below    |
+| `ifrs-full:TradeReceivables`                             | 6        | Yes, second           |
+| `ifrs-full:TradeAndOtherReceivables`                     | 3        | **No** — same problem |
+| `ifrs-full:CurrentReceivablesFromContractsWithCustomers` | 1        | Yes, third            |
 
-DSO is therefore available for thirty-one entities rather than eleven — but only
-because the chain leads with the _precise_ concept and excludes the most widely
-tagged one. `OtherCurrentReceivables` is prepayments, tax and sundry debtors;
-folding it in would inflate DSO for almost every company.
+`TradeAndOtherCurrentReceivables` says trade _and_ other, so it ought to be a
+superset of trade receivables. Among the seven issuers that tag both, six use it
+for the far smaller "other receivables" line instead:
+
+| Issuer    | `CurrentTradeReceivables` | `TradeAndOtherCurrentReceivables` |
+| --------- | ------------------------- | --------------------------------- |
+| Matrix IT | 1,746,539,000             | 113,123,000                       |
+| Hilan     | 920,000,000               | 285,000,000                       |
+| C. Mer    | 188,000,000               | 28,000,000                        |
+| Danel     | 304,000,000               | 23,000,000                        |
+| Abra      | 186,000,000               | 18,000,000                        |
+
+Using it as a fallback would understate DSO by an order of magnitude for any
+company that tags only it. Four entities do, and all four sit outside the MVP
+universe, so removing it costs nothing and prevents a badly wrong number.
+
+**The same trap resolves the other way for payables.** Only two of the seven
+issuers that tag both use `TradeAndOtherCurrentPayables` as the smaller line,
+and eight issuers tag nothing else. It stays in the chain, behind the
+supplier-specific concept. A DPO of a very few days is the symptom that it was
+read as "other payables" for some issuer, and is worth a check in the signal
+engine.
 
 **The universe is 41 entities.** After excluding financial services, real estate,
 holdings, oil and gas and biotech, roughly 20 are usable. Enough for the MVP
