@@ -11,6 +11,7 @@ phase 1 spike rather than assumed:
 """
 
 import logging
+import math
 from collections.abc import Iterator, Sequence
 from typing import Any
 
@@ -48,18 +49,34 @@ def _text(row: dict[str, Any], column: str) -> str | None:
 
 
 def _number(row: dict[str, Any], column: str) -> float | None:
-    """Read a numeric column. An unparseable figure is unknown, not zero."""
+    """Read a numeric column. An unparseable figure is unknown, not zero.
+
+    Non-finite input is rejected too: `float("INF")` parses happily, and an
+    infinite financial figure is not a number anyone reported.
+    """
     text = _text(row, column)
     if text is None:
         return None
     try:
-        return float(text.replace(",", ""))
+        value = float(text.replace(",", ""))
     except ValueError:
         logger.warning("unparseable number in %s: %r", column, text)
         return None
 
+    if not math.isfinite(value):
+        logger.warning("non-finite number in %s: %r", column, text)
+        return None
+    return value
+
 
 def _integer(row: dict[str, Any], column: str) -> int | None:
+    """Read an integer column.
+
+    XBRL writes `decimals="INF"` to mean "stated exactly, no rounding". That is
+    a real and common value, and it is not an integer. It is read as unknown
+    here because nothing consumes `decimals` numerically yet; `scale` still
+    carries the display scale.
+    """
     value = _number(row, column)
     return int(value) if value is not None else None
 

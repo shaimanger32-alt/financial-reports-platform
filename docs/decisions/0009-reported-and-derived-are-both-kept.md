@@ -46,11 +46,22 @@ A canonical metric maps to an _ordered list_ of raw concepts, tried in order,
 with an optional company-specific override. The concept actually used is stored
 on every fact.
 
+Chains are ordered by **precision first, availability second**. The concept that
+means exactly what the metric means leads, even when a broader one is tagged more
+widely, because a number quietly measuring something else is worse than a null.
+
 Rejected alternative: mapping only the single standard IFRS concept. It is
-simpler and perfectly honest under section 4.4, but the spike measured that only
-4 of 39 entities report `ifrs-full:TradeAndOtherCurrentReceivables`. DSO, the
-receivables growth gap and pattern P1 would be `null` for almost every company,
-which removes the product's core differentiation rather than protecting it.
+simpler and perfectly honest under section 4.4, but a full sweep of all
+thirty-nine entities found `ifrs-full:TradeAndOtherCurrentReceivables` reported
+by eleven of them, while `ifrs-full:CurrentTradeReceivables` — the more precise
+concept — is reported by thirty-one. A single-tag mapping would leave DSO, the
+receivables growth gap and pattern P1 `null` for most of the market, removing
+the product's core differentiation rather than protecting it.
+
+The same sweep set the exclusions. `ifrs-full:OtherCurrentReceivables` is the
+most widely tagged receivables concept of all, at thirty-six entities, and is
+deliberately not in the chain: it is non-trade receivables, and including it
+would inflate DSO almost everywhere.
 
 The cost is bounded because the fallback chain is defined per metric, not per
 company. Per-company overrides exist as an escape hatch for extensions, not as

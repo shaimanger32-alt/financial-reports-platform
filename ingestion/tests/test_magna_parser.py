@@ -76,6 +76,57 @@ def test_restatements_are_detected(facts: list[Any]) -> None:
         assert len(values) == 2
 
 
+def test_infinite_decimals_do_not_crash_the_parser() -> None:
+    """XBRL writes decimals="INF" to mean "stated exactly, no rounding".
+
+    It parses as a float perfectly happily and then overflows on int(), which is
+    exactly how it was found: the narrow phase 1 probe never hit it, and a wider
+    query across all issuers did.
+    """
+    row = {
+        "Company ID": "520039413",
+        "Reference Number": "2024-01-616266",
+        "Period": "30/09/2024",
+        "Tag": "ifrs-full:Assets",
+        "Fact": "3882556000",
+        "Measure": "ILS",
+        "Scale": "3",
+        "Decimals": "INF",
+        "Axis": "",
+        "Member": "",
+        "ExplicitMember": "",
+        "TypedMember": "",
+        "Data source in XBRL": "Consolidated Reports On The Financial Situation",
+        "Label (EN)": "Assets",
+    }
+
+    parsed = parse_rows([row])
+
+    assert len(parsed) == 1
+    assert parsed[0].decimals is None
+    assert parsed[0].value == 3882556000
+    assert parsed[0].scale == 3
+
+
+def test_an_infinite_figure_is_rejected_as_unknown() -> None:
+    """A value cannot be infinite. Unknown is the only honest reading."""
+    row = {
+        "Company ID": "520039413",
+        "Reference Number": "2024-01-616266",
+        "Period": "30/09/2024",
+        "Tag": "ifrs-full:Assets",
+        "Fact": "INF",
+        "Axis": "",
+        "Member": "",
+        "ExplicitMember": "",
+        "TypedMember": "",
+    }
+
+    parsed = parse_rows([row])
+
+    assert parsed[0].value is None
+
+
 def test_units_and_scale_are_preserved(facts: list[Any]) -> None:
     """Currency and scale travel with the fact; they are not normalised away."""
     revenue = [f for f in facts if f.concept == "ifrs-full:Revenue" and f.value is not None]

@@ -46,10 +46,24 @@ across filings. Any pipeline that takes the first value it sees will be wrong.
 appeared in up to 24 filings in the sample. Deduplication with lineage is a
 correctness requirement, not an optimisation.
 
-**Coverage of a single tag is not coverage of a metric.** Only 4 of 39 entities
-report `ifrs-full:TradeAndOtherCurrentReceivables`, while the taxonomy carries at
-least six receivables concepts. DSO and the receivables growth gap — the inputs
-to pattern P1 — depend on resolving this.
+**Coverage of a single tag is not coverage of a metric.** The phase 1 probe used
+`ifrs-full:TradeAndOtherCurrentReceivables` and found it almost empty. A full
+sweep of all six receivables concepts across all thirty-nine entities, run on
+2026-08-09, shows why:
+
+| Concept                                                  | Entities | In the chain?      |
+| -------------------------------------------------------- | -------- | ------------------ |
+| `ifrs-full:OtherCurrentReceivables`                      | 36       | **No** — not trade |
+| `ifrs-full:CurrentTradeReceivables`                      | 31       | Yes, first         |
+| `ifrs-full:TradeAndOtherCurrentReceivables`              | 11       | Yes, fourth        |
+| `ifrs-full:TradeReceivables`                             | 6        | Yes, second        |
+| `ifrs-full:TradeAndOtherReceivables`                     | 3        | Yes, fifth         |
+| `ifrs-full:CurrentReceivablesFromContractsWithCustomers` | 1        | Yes, third         |
+
+DSO is therefore available for thirty-one entities rather than eleven — but only
+because the chain leads with the _precise_ concept and excludes the most widely
+tagged one. `OtherCurrentReceivables` is prepayments, tax and sundry debtors;
+folding it in would inflate DSO for almost every company.
 
 **The universe is 41 entities.** After excluding financial services, real estate,
 holdings, oil and gas and biotech, roughly 20 are usable. Enough for the MVP
@@ -171,15 +185,34 @@ An ordered concept fallback chain per canonical metric, with per-company
 overrides as an escape hatch, and the concept actually used stored on the fact.
 
 Spec section 12 requires mapping raw concepts to canonical metrics and allows
-company-specific overrides. The spike quantified the cost: receivables alone is
-spread across at least six concepts, and only 4 of 39 entities use the one the
-metric definitions would naively pick.
+company-specific overrides.
+
+Two rules order every chain:
+
+1. **Precision before availability.** The concept that means exactly what the
+   metric means comes first, even when a broader one is more widely tagged. A
+   number quietly measuring something else is worse than a null.
+2. **Availability breaks ties** between concepts that mean the same thing.
 
 Mapping only the single standard concept was rejected: it is honest under
 section 4.4, but it would leave DSO, the receivables growth gap and pattern P1
-`null` for almost every company, removing the core differentiation rather than
-protecting it. The chain is defined per metric, so the cost does not grow with
-each company added; per-company overrides handle extensions only.
+`null` for most of the market. The chain is defined per metric, so the cost does
+not grow with each company added; per-company overrides handle extensions only.
+
+Chains are seeded into `concept_mapping` as versioned data at `v1`, and the
+concept that actually resolved is stored on every fact, so a user can always see
+what a number really came from.
+
+### Metrics that will be sparse
+
+Measured, so nobody is surprised later:
+
+- **Debt** is thinly tagged — `ShorttermBorrowings` 7 entities, `LongtermBorrowings` 8. Net debt, net debt to EBITDA and interest coverage will be `null` for most
+  companies.
+- **Share counts** are thinly tagged — 3 and 4 entities. Dilution will be `null`
+  for almost everyone.
+
+These stay `null` rather than being assembled from whatever was to hand.
 
 ---
 
