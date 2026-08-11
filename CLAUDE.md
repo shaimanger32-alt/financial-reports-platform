@@ -70,17 +70,39 @@ no provider URL may appear outside `ingestion/`.
 
 ## Where the project stands
 
-Phases 0 to 3 are complete; phase 4 is partly done and phase 5 has begun.
+Phases 0 to 3 are complete. Phase 4 is half done and phase 5 has begun.
 
-Working end to end: MAGNA ingestion → canonical store → 35 metrics → 16 signal
-rules → analysis snapshots → REST API → a Hebrew company page.
+Working end to end, from the live MAGNA API to a page a reader can use:
 
-Not built yet: the pattern engine (P1–P6), watch items, Report Pulse, search,
-and the evidence engine.
+- 8 companies, ~18,800 facts, 107 analysis snapshots
+- 35 metrics, 13 of them CORE; 16 signal rules, 8 of them CORE
+- REST API serving stored snapshots, versions attached to every response
+- A Hebrew company page: six headline figures, signals, a trend chart,
+  collapsible categories, and an explanation behind every metric
 
-Still open, and blocking when reached: question C in
-`docs/financial-methodology.md` — the rules that map metrics to Report Pulse
-colours.
+**Not built yet**, in the order it matters:
+
+1. **Pattern engine** (P1–P6, spec section 16). Signals exist but nothing joins
+   them into one story. Hilan is a ready-made test case for P2: its cash
+   conversion fell and its accruals rose in the same quarter, which are two
+   views of one thing.
+2. **Report Pulse** (section 6.1). Blocked on question C, though the CORE and
+   EXTENDED tiering narrowed it — a dimension that rests on gross margin cannot
+   work, because only 69% of issuers report one.
+3. **Watch items** (section 28), period switching in the UI, and search.
+4. The evidence engine (phase 6) and everything downstream of it.
+
+**Coverage.** The MAGNA XBRL API carries 41 entities, not the whole market.
+That is a temporary ceiling: iXBRL is voluntary today, the ISA is funding TA-125
+companies to adopt it, and legislation is being advanced to make it mandatory
+for every reporting corporation. Shay intends to ask the ISA for wider access.
+Until then the answer to "can we add more companies" is: only these 41, and
+adding any of them costs nothing because the mapping is per metric rather than
+per company.
+
+Do not build a PDF scraper for the wider market without an explicit decision
+from Shay. It is months of work on a problem the legislation is set to remove,
+and every mis-extracted field becomes a convincing wrong number.
 
 ## Running it
 
