@@ -133,6 +133,51 @@ def check_gross_profit(figures: Figures) -> IdentityCheck:
     )
 
 
+def check_cash_bridge(figures: Figures) -> IdentityCheck:
+    """Operating plus investing plus financing equals the change in cash.
+
+    Every issuer tags all three cash flow sections, so unlike the other two this
+    identity is checkable for the whole market. It catches a sign convention read
+    the wrong way round, which is otherwise invisible: a financing outflow stored
+    as a positive number still looks like a plausible figure on its own.
+    """
+    return _evaluate(
+        name="cash_flows_sum_to_the_change_in_cash",
+        figures=figures,
+        required=(
+            "operating_cash_flow",
+            "investing_cash_flow",
+            "financing_cash_flow",
+            "net_change_in_cash",
+        ),
+        expected_of=lambda v: (
+            v["operating_cash_flow"] + v["investing_cash_flow"] + v["financing_cash_flow"]
+        ),
+        actual_key="net_change_in_cash",
+    )
+
+
+def check_balance_sheet_total(figures: Figures) -> IdentityCheck:
+    """Assets equals the reported total of equity and liabilities.
+
+    Both sides are tagged by every issuer, so this is the one balance sheet check
+    that always runs. `check_balance_sheet` rebuilds the other side from its
+    parts and is the stronger test where those parts exist.
+    """
+    return _evaluate(
+        name="assets_equal_reported_equity_and_liabilities",
+        figures=figures,
+        required=("total_assets", "equity_and_liabilities"),
+        expected_of=lambda v: v["equity_and_liabilities"],
+        actual_key="total_assets",
+    )
+
+
 def check_all(figures: Figures) -> tuple[IdentityCheck, ...]:
     """Run every identity that applies to one period's figures."""
-    return (check_balance_sheet(figures), check_gross_profit(figures))
+    return (
+        check_balance_sheet_total(figures),
+        check_balance_sheet(figures),
+        check_cash_bridge(figures),
+        check_gross_profit(figures),
+    )

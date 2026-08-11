@@ -614,3 +614,229 @@ def asset_turnover(facts: FactSet, period: FiscalPeriod) -> MetricResult:
 def dilution_yoy(facts: FactSet, period: FiscalPeriod) -> MetricResult:
     """Change in the diluted share count, year on year."""
     return _growth_yoy("dilution_yoy", "weighted_average_shares_diluted", facts, period)
+
+
+# =====================================================================
+# Tier one: built only on concepts every issuer tags.
+#
+# These work for every company in the market, including banks and insurers,
+# because they describe structure -- profit, tax, liquidity, capital, cash --
+# rather than operations. Nothing here touches revenue, gross profit or
+# inventory, none of which is universal.
+# =====================================================================
+
+
+def profit_before_tax_growth_yoy(facts: FactSet, period: FiscalPeriod) -> MetricResult:
+    return _growth_yoy("profit_before_tax_growth_yoy", "profit_before_tax", facts, period)
+
+
+def operating_cash_flow_growth_yoy(facts: FactSet, period: FiscalPeriod) -> MetricResult:
+    return _growth_yoy("operating_cash_flow_growth_yoy", "operating_cash_flow", facts, period)
+
+
+def effective_tax_rate(facts: FactSet, period: FiscalPeriod) -> MetricResult:
+    """Tax expense over pre-tax profit.
+
+    Only meaningful on a profit. Against a pre-tax loss the ratio inverts and a
+    tax benefit reads as a tax burden, so the answer is null instead.
+    """
+    tax = facts.value("income_tax_expense", period)
+    pre_tax = facts.value("profit_before_tax", period)
+    inputs = {"income_tax_expense": tax, "profit_before_tax": pre_tax}
+
+    if tax is None or pre_tax is None:
+        return _result(
+            "effective_tax_rate",
+            period,
+            None,
+            UnitType.RATIO,
+            inputs,
+            warnings=(MetricWarning.MISSING_INPUT,),
+        )
+    if pre_tax <= 0:
+        return _result(
+            "effective_tax_rate",
+            period,
+            None,
+            UnitType.RATIO,
+            inputs,
+            warnings=(MetricWarning.NEGATIVE_DENOMINATOR,),
+        )
+    return _result("effective_tax_rate", period, abs(tax) / pre_tax, UnitType.RATIO, inputs)
+
+
+def net_finance_cost(facts: FactSet, period: FiscalPeriod) -> MetricResult:
+    """Finance costs less finance income.
+
+    Both sides are tagged by every issuer, and netting them is the only honest
+    reading: a company can carry large gross costs and larger gross income.
+    """
+    costs = facts.value("finance_costs", period)
+    income = facts.value("finance_income", period)
+    inputs = {"finance_costs": costs, "finance_income": income}
+
+    if costs is None or income is None:
+        return _result(
+            "net_finance_cost",
+            period,
+            None,
+            UnitType.CURRENCY,
+            inputs,
+            warnings=(MetricWarning.MISSING_INPUT,),
+        )
+    return _result("net_finance_cost", period, abs(costs) - abs(income), UnitType.CURRENCY, inputs)
+
+
+def working_capital(facts: FactSet, period: FiscalPeriod) -> MetricResult:
+    """Current assets less current liabilities.
+
+    Spec section 18 notes that a negative figure is normal and can be a strength
+    in some retail models, so this is reported, never scored.
+    """
+    current_assets = balance_at(facts, "current_assets", period)
+    current_liabilities = balance_at(facts, "current_liabilities", period)
+    inputs = {"current_assets": current_assets, "current_liabilities": current_liabilities}
+
+    if current_assets is None or current_liabilities is None:
+        return _result(
+            "working_capital",
+            period,
+            None,
+            UnitType.CURRENCY,
+            inputs,
+            warnings=(MetricWarning.MISSING_INPUT,),
+        )
+    return _result(
+        "working_capital", period, current_assets - current_liabilities, UnitType.CURRENCY, inputs
+    )
+
+
+def current_ratio(facts: FactSet, period: FiscalPeriod) -> MetricResult:
+    """Current assets over current liabilities."""
+    current_assets = balance_at(facts, "current_assets", period)
+    current_liabilities = balance_at(facts, "current_liabilities", period)
+    inputs = {"current_assets": current_assets, "current_liabilities": current_liabilities}
+
+    if current_assets is None or current_liabilities is None:
+        return _result(
+            "current_ratio",
+            period,
+            None,
+            UnitType.RATIO,
+            inputs,
+            warnings=(MetricWarning.MISSING_INPUT,),
+        )
+    if current_liabilities <= 0:
+        return _result(
+            "current_ratio",
+            period,
+            None,
+            UnitType.RATIO,
+            inputs,
+            warnings=(MetricWarning.NEGATIVE_DENOMINATOR,),
+        )
+    return _result(
+        "current_ratio", period, current_assets / current_liabilities, UnitType.RATIO, inputs
+    )
+
+
+def equity_ratio(facts: FactSet, period: FiscalPeriod) -> MetricResult:
+    """Equity as a share of the balance sheet."""
+    equity = balance_at(facts, "total_equity", period)
+    assets = balance_at(facts, "total_assets", period)
+    inputs = {"total_equity": equity, "total_assets": assets}
+
+    if equity is None or assets is None:
+        return _result(
+            "equity_ratio",
+            period,
+            None,
+            UnitType.RATIO,
+            inputs,
+            warnings=(MetricWarning.MISSING_INPUT,),
+        )
+    if assets <= 0:
+        return _result(
+            "equity_ratio",
+            period,
+            None,
+            UnitType.RATIO,
+            inputs,
+            warnings=(MetricWarning.NEGATIVE_DENOMINATOR,),
+        )
+    return _result("equity_ratio", period, equity / assets, UnitType.RATIO, inputs)
+
+
+def liabilities_to_equity(facts: FactSet, period: FiscalPeriod) -> MetricResult:
+    """Total liabilities over equity.
+
+    Total liabilities is tagged by only a third of issuers, so the two halves of
+    the balance sheet are summed instead -- both of which every issuer tags.
+    Negative equity makes the ratio meaningless rather than merely large.
+    """
+    current = balance_at(facts, "current_liabilities", period)
+    non_current = balance_at(facts, "non_current_liabilities", period)
+    equity = balance_at(facts, "total_equity", period)
+    inputs = {
+        "current_liabilities": current,
+        "non_current_liabilities": non_current,
+        "total_equity": equity,
+    }
+
+    if current is None or non_current is None or equity is None:
+        return _result(
+            "liabilities_to_equity",
+            period,
+            None,
+            UnitType.RATIO,
+            inputs,
+            warnings=(MetricWarning.MISSING_INPUT,),
+        )
+    if equity <= 0:
+        return _result(
+            "liabilities_to_equity",
+            period,
+            None,
+            UnitType.RATIO,
+            inputs,
+            warnings=(MetricWarning.NEGATIVE_DENOMINATOR,),
+        )
+    return _result(
+        "liabilities_to_equity", period, (current + non_current) / equity, UnitType.RATIO, inputs
+    )
+
+
+def cash_runway_quarters(facts: FactSet, period: FiscalPeriod) -> MetricResult:
+    """How many quarters the cash balance covers, at the current burn.
+
+    Only defined while operating cash flow is negative. A company generating cash
+    has no runway to measure, and reporting a number there would invite the wrong
+    reading entirely.
+    """
+    cash = balance_at(facts, "cash_and_equivalents", period)
+    ocf = trailing_twelve_months(facts, "operating_cash_flow", period)
+    inputs = {
+        "cash_and_equivalents": cash,
+        "operating_cash_flow_ttm": None if ocf is None else ocf.value,
+    }
+
+    if cash is None or ocf is None:
+        return _result(
+            "cash_runway_quarters",
+            period,
+            None,
+            UnitType.COUNT,
+            inputs,
+            warnings=(MetricWarning.MISSING_INPUT,),
+        )
+    if ocf.value >= 0:
+        return _result(
+            "cash_runway_quarters",
+            period,
+            None,
+            UnitType.COUNT,
+            inputs,
+            warnings=(MetricWarning.IMMATERIAL_DENOMINATOR,),
+        )
+    quarterly_burn = abs(ocf.value) / 4.0
+    return _result("cash_runway_quarters", period, cash / quarterly_burn, UnitType.COUNT, inputs)

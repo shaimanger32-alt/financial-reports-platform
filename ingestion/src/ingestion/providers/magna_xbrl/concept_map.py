@@ -35,12 +35,15 @@ CONCEPT_CHAINS: Final[dict[str, tuple[str, ...]]] = {
     "cost_of_sales": ("ifrs-full:CostOfSales",),
     "gross_profit": ("ifrs-full:GrossProfit",),
     "operating_profit": ("ifrs-full:ProfitLossFromOperatingActivities",),  # 32
-    "net_income": ("ifrs-full:ProfitLoss",),  # 39
+    "net_income": ("ifrs-full:ProfitLoss",),  # 100% of issuers
+    "profit_before_tax": ("ifrs-full:ProfitLossBeforeTax",),  # 100%
+    "finance_income": ("ifrs-full:FinanceIncome",),  # 100%
+    "comprehensive_income": ("ifrs-full:ComprehensiveIncome",),  # 100%
     "net_income_attributable_to_owners": (
         "ifrs-full:ProfitLossAttributableToOwnersOfParent",
     ),  # 33
-    "finance_costs": ("ifrs-full:FinanceCosts",),
-    "income_tax_expense": ("ifrs-full:IncomeTaxExpenseContinuingOperations",),
+    "finance_costs": ("ifrs-full:FinanceCosts",),  # 100%
+    "income_tax_expense": ("ifrs-full:IncomeTaxExpenseContinuingOperations",),  # 100%
     "depreciation_amortisation": (
         # The expense as reported in profit and loss is the primary meaning; the
         # cash flow add-back is the same amount reached another way, and is far
@@ -50,9 +53,12 @@ CONCEPT_CHAINS: Final[dict[str, tuple[str, ...]]] = {
     ),
     # -- cash flow --------------------------------------------------------
     "operating_cash_flow": (
-        "ifrs-full:CashFlowsFromUsedInOperatingActivities",
+        "ifrs-full:CashFlowsFromUsedInOperatingActivities",  # 100%
         "ifrs-full:CashFlowsFromUsedInOperatingActivitiesContinuingOperations",
     ),
+    "investing_cash_flow": ("ifrs-full:CashFlowsFromUsedInInvestingActivities",),  # 100%
+    "financing_cash_flow": ("ifrs-full:CashFlowsFromUsedInFinancingActivities",),  # 100%
+    "net_change_in_cash": ("ifrs-full:IncreaseDecreaseInCashAndCashEquivalents",),  # 97%
     "capital_expenditure": (
         "ifrs-full:PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",
         # Broader: bundles intangibles and investment property with PP&E. Usable,
@@ -82,8 +88,11 @@ CONCEPT_CHAINS: Final[dict[str, tuple[str, ...]]] = {
         "ifrs-full:InventoriesTotal",  # 6
     ),
     # -- balance sheet ----------------------------------------------------
-    "total_assets": ("ifrs-full:Assets",),
-    "current_assets": ("ifrs-full:CurrentAssets",),
+    "total_assets": ("ifrs-full:Assets",),  # 100%
+    "current_assets": ("ifrs-full:CurrentAssets",),  # 100%
+    "non_current_assets": ("ifrs-full:NoncurrentAssets",),  # 100%
+    "equity_and_liabilities": ("ifrs-full:EquityAndLiabilities",),  # 100%
+    "property_plant_equipment": ("ifrs-full:PropertyPlantAndEquipment",),  # 97%
     "current_liabilities": ("ifrs-full:CurrentLiabilities",),  # 39
     "non_current_liabilities": ("ifrs-full:NoncurrentLiabilities",),  # 39
     "cash_and_equivalents": ("ifrs-full:CashAndCashEquivalents",),

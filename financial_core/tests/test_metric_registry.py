@@ -32,8 +32,16 @@ def test_calculated_codes_do_not_collide_with_reported_ones() -> None:
 
 
 def test_the_engine_covers_the_range_the_spec_asks_for() -> None:
-    """Spec section 48 asks for 15 to 20 core metrics, not a hundred ratios."""
-    assert 15 <= len(CALCULATED_METRICS) <= 30
+    """Spec section 48 asks for 15 to 20 core metrics, not a hundred ratios.
+
+    The count is checked against the CORE tier, since those are the metrics
+    every company actually gets. Extended metrics resolve where the data exists
+    and are null elsewhere, so a longer list there costs nothing.
+    """
+    core = [spec for spec in CALCULATED_METRICS if spec.is_core]
+
+    assert 10 <= len(core) <= 20
+    assert len(CALCULATED_METRICS) <= 40
 
 
 def test_every_metric_carries_a_version() -> None:

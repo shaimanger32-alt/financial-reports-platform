@@ -9,10 +9,12 @@ from financial_core.metrics.aggregation import (
     trailing_twelve_months,
 )
 from financial_core.metrics.catalogue import (
+    CORE_LINE_ITEMS,
     METRICS_BY_CODE,
     REPORTED_METRICS,
     MetricCategory,
     MetricSpec,
+    MetricTier,
     UnitType,
 )
 from financial_core.metrics.registry import (
@@ -28,6 +30,7 @@ from financial_core.metrics.values import FactPoint, FactSet
 __all__ = [
     "CALCULATED_BY_CODE",
     "CALCULATED_METRICS",
+    "CORE_LINE_ITEMS",
     "METRICS_BY_CODE",
     "REPORTED_METRICS",
     "CalculatedMetricSpec",
@@ -36,6 +39,7 @@ __all__ = [
     "MetricCategory",
     "MetricResult",
     "MetricSpec",
+    "MetricTier",
     "MetricWarning",
     "TrailingTwelveMonths",
     "UnitType",
