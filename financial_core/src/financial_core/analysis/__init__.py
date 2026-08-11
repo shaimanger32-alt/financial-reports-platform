@@ -3,6 +3,7 @@
 from financial_core.analysis.snapshot import (
     ANALYSIS_VERSION,
     AnalysisSnapshot,
+    LineItemView,
     MetricView,
     SignalView,
     SnapshotVersions,
@@ -12,6 +13,7 @@ from financial_core.analysis.snapshot import (
 __all__ = [
     "ANALYSIS_VERSION",
     "AnalysisSnapshot",
+    "LineItemView",
     "MetricView",
     "SignalView",
     "SnapshotVersions",

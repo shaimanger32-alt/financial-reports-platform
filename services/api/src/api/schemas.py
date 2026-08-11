@@ -83,6 +83,22 @@ class MetricValue(BaseModel):
     inputs: dict[str, float | None] = Field(default_factory=dict)
 
 
+class LineItem(BaseModel):
+    """A figure the issuer reported, as opposed to one we computed."""
+
+    code: str
+    name_he: str
+    name_en: str
+    category: str
+    tier: Literal["core", "extended"]
+    value: float | None
+    raw_concept: str | None = Field(
+        default=None,
+        description="The concept the issuer actually tagged, so a number can be traced.",
+    )
+    origin: Literal["reported", "derived"]
+
+
 class SignalValue(BaseModel):
     """One numeric observation.
 
@@ -120,6 +136,7 @@ class ReportAnalysis(BaseModel):
     period_start: str | None = None
     period_end: str
     versions: AnalysisVersions
+    line_items: list[LineItem]
     metrics: list[MetricValue]
     signals: list[SignalValue]
     generated_at: str

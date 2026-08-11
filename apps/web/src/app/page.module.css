@@ -1,109 +1,100 @@
-.main {
-  max-width: 40rem;
+.page {
+  max-width: var(--measure);
   margin: 0 auto;
-  padding: 3rem 1.25rem 4rem;
+  padding: 5rem 1.5rem 6rem;
 }
 
-.header {
-  margin-bottom: 2rem;
+/* The masthead sets the register for the whole product: a broadsheet, read
+   carefully, not a dashboard glanced at. */
+.masthead {
+  border-bottom: 3px double var(--rule-strong);
+  padding-bottom: 1.75rem;
+  margin-bottom: 3rem;
 }
 
-.title {
-  margin: 0 0 0.35rem;
-  font-size: 1.75rem;
-  letter-spacing: -0.01em;
+.wordmark {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 6vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  direction: ltr;
+  text-align: right;
+  margin-bottom: 0.5rem;
 }
 
-.subtitle {
+.strapline {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
+  color: var(--ink-muted);
+  font-size: 1.0625rem;
+  max-width: 34em;
 }
 
-.card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
-  padding: 1.25rem 1.5rem;
-}
-
-.cardTitle {
-  margin: 0 0 1rem;
-  font-size: 1rem;
+.sectionTitle {
+  font-size: 0.8125rem;
   font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-family: var(--font-body);
+  margin-bottom: 1.25rem;
 }
 
 .list {
+  list-style: none;
   margin: 0;
+  padding: 0;
+  border-top: var(--hairline);
 }
 
-.row {
+.listItem {
+  border-bottom: var(--hairline);
+}
+
+.listLink {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  gap: 1rem;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--color-border);
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.1rem 0.25rem;
+  text-decoration: none;
+  transition: background 120ms ease;
 }
 
-.row:last-child {
-  border-bottom: none;
+.listLink:hover {
+  background: var(--paper-sunken);
 }
 
-.label {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
+.companyName {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
 }
 
-.value {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
+.listLink:hover .companyName {
+  color: var(--accent);
 }
 
-.ok {
-  color: var(--color-ok);
+.companyMeta {
+  color: var(--ink-faint);
+  font-size: 0.875rem;
+  white-space: nowrap;
 }
 
-.bad {
-  color: var(--color-error);
+.dot {
+  margin: 0 0.5em;
 }
 
-.errorBox {
-  display: grid;
-  gap: 0.5rem;
+.empty,
+.offline {
+  color: var(--ink-muted);
 }
 
-.errorTitle {
-  margin: 0;
-  color: var(--color-error);
-  font-weight: 600;
-}
-
-.errorDetail {
-  margin: 0;
+.offlineDetail {
+  display: block;
+  margin-top: 0.5rem;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-  word-break: break-all;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
   direction: ltr;
   text-align: left;
-}
-
-.hint {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
-.code {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 0.25rem;
-  padding: 0.05rem 0.3rem;
-  direction: ltr;
-  display: inline-block;
+  word-break: break-all;
 }

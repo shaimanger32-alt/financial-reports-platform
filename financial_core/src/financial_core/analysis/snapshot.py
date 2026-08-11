@@ -18,9 +18,9 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from financial_core.metrics import CALCULATED_BY_CODE, FactSet, compute_all
+from financial_core.metrics import CALCULATED_BY_CODE, REPORTED_METRICS, FactSet, compute_all
 from financial_core.metrics.formulas import FORMULA_VERSION
-from financial_core.periods import FiscalPeriod
+from financial_core.periods import FiscalPeriod, PeriodKind, quarter_end
 from financial_core.signals import (
     ALL_RULES,
     DEFAULT_THRESHOLDS,
@@ -54,6 +54,25 @@ class MetricView:
     @property
     def is_available(self) -> bool:
         return self.value is not None
+
+
+@dataclass(frozen=True, slots=True)
+class LineItemView:
+    """A figure the issuer reported, as opposed to one we computed.
+
+    A page that shows only ratios asks the reader to take the underlying figures
+    on trust. Revenue of 1,418.8M and growth of 6.4% are different statements,
+    and the first is the one that can be checked against the filing.
+    """
+
+    code: str
+    name_he: str
+    name_en: str
+    category: str
+    tier: str
+    value: float | None
+    raw_concept: str | None
+    origin: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +118,7 @@ class AnalysisSnapshot:
     fiscal_year: int
     fiscal_quarter: int
     versions: SnapshotVersions
+    line_items: tuple[LineItemView, ...]
     metrics: tuple[MetricView, ...]
     signals: tuple[SignalView, ...]
 
@@ -114,6 +134,7 @@ class AnalysisSnapshot:
             "fiscal_year": self.fiscal_year,
             "fiscal_quarter": self.fiscal_quarter,
             "versions": asdict(self.versions),
+            "line_items": [asdict(item) for item in self.line_items],
             "metrics": [asdict(metric) for metric in self.metrics],
             "signals": [asdict(signal) for signal in self.signals],
         }
@@ -134,6 +155,38 @@ def _to_metric_view(code: str, result: Any) -> MetricView:
         inputs=dict(result.inputs),
         missing_inputs=result.missing_inputs,
     )
+
+
+def _collect_line_items(facts: FactSet, period: FiscalPeriod) -> tuple[LineItemView, ...]:
+    """Every reported figure for this period, flows and balances alike.
+
+    Flows are read at the period itself; balances at the instant that closes it.
+    Mixing the two is precisely what spec section 11.3 separates them to prevent.
+    """
+    instant = FiscalPeriod(
+        fiscal_year=period.fiscal_year,
+        fiscal_quarter=period.fiscal_quarter,
+        period_kind=PeriodKind.INSTANT,
+        duration_kind=None,
+        end=quarter_end(period.fiscal_year, period.fiscal_quarter),
+    )
+
+    items: list[LineItemView] = []
+    for spec in REPORTED_METRICS:
+        point = facts.point(spec.code, period) or facts.point(spec.code, instant)
+        items.append(
+            LineItemView(
+                code=spec.code,
+                name_he=spec.name_he,
+                name_en=spec.name_en,
+                category=spec.category.value,
+                tier=spec.tier.value,
+                value=None if point is None else point.value,
+                raw_concept=None if point is None else point.raw_concept,
+                origin="reported" if point is None else point.origin.value,
+            )
+        )
+    return tuple(items)
 
 
 def _to_signal_view(signal: Signal) -> SignalView:
@@ -190,6 +243,7 @@ def build_snapshot(
             thresholds=thresholds.version,
             mappings=mapping_version,
         ),
+        line_items=_collect_line_items(facts, period),
         metrics=metrics,
         signals=signals,
     )

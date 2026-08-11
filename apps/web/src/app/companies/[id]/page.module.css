@@ -1,0 +1,273 @@
+.page {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 6rem;
+}
+
+.back {
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+  margin-bottom: 2rem;
+}
+
+.back a {
+  text-decoration: none;
+}
+
+.back a:hover {
+  color: var(--accent);
+}
+
+.masthead {
+  border-bottom: 3px double var(--rule-strong);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2.75rem;
+}
+
+.name {
+  font-size: clamp(1.875rem, 5vw, 2.75rem);
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+}
+
+.meta {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.9375rem;
+}
+
+.dot {
+  margin: 0 0.5em;
+  color: var(--ink-faint);
+}
+
+.block {
+  margin-bottom: 3.25rem;
+}
+
+.blockTitle {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-bottom: 0.6rem;
+  border-bottom: var(--hairline);
+  margin-bottom: 1.25rem;
+}
+
+/* ---- signals ---------------------------------------------------------- */
+
+.signals {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.signal {
+  display: flex;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  background: var(--paper-raised);
+  border: var(--hairline);
+  border-radius: 2px;
+}
+
+/* Severity is a 3px rule, not a coloured panel. Spec section 44 rules out
+   drama, and a filled red card is drama before a word has been read. */
+.severityMark {
+  flex: 0 0 3px;
+  border-radius: 2px;
+  background: var(--ink-faint);
+}
+
+.signal[data-severity="positive"] .severityMark {
+  background: var(--positive);
+}
+.signal[data-severity="watch"] .severityMark {
+  background: var(--watch);
+}
+.signal[data-severity="warning"] .severityMark {
+  background: var(--warning);
+}
+.signal[data-severity="critical"] .severityMark {
+  background: var(--critical);
+}
+.signal[data-severity="info"] .severityMark {
+  background: var(--info);
+}
+
+.signalBody {
+  min-width: 0;
+}
+
+.signalText {
+  margin: 0 0 0.3rem;
+  font-family: var(--font-display);
+  font-size: 1.1875rem;
+  line-height: 1.35;
+}
+
+.signalDetail {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+}
+
+.severityLabel {
+  font-weight: 600;
+}
+
+.signal[data-severity="positive"] .severityLabel {
+  color: var(--positive);
+}
+.signal[data-severity="watch"] .severityLabel {
+  color: var(--watch);
+}
+.signal[data-severity="warning"] .severityLabel {
+  color: var(--warning);
+}
+.signal[data-severity="critical"] .severityLabel {
+  color: var(--critical);
+}
+
+.disclaimer,
+.quiet {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+/* ---- the ledger ------------------------------------------------------- */
+
+.ledger {
+  border-top: var(--hairline);
+  margin-bottom: 1.75rem;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.6rem 0.15rem;
+  border-bottom: var(--hairline);
+}
+
+.rowLabel {
+  color: var(--ink-muted);
+  font-size: 0.9375rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* A metric every company gets, versus one that depends on what the issuer
+   happened to tag. Small enough to ignore, present enough to answer "why is
+   this blank for that company and not this one". */
+.coreMark {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+
+.rowValue {
+  text-align: left;
+  direction: ltr;
+  font-size: 1.0625rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+/* A missing figure is stated, not left blank. It is the product's whole claim
+   that "we do not know" is information (spec section 4.4). */
+.absent {
+  color: var(--ink-faint);
+}
+
+.note {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  direction: rtl;
+  text-align: right;
+  max-width: 32em;
+}
+
+.source {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--ink-faint);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.row:hover .source {
+  opacity: 1;
+}
+
+.category {
+  margin-bottom: 1.5rem;
+}
+
+.categoryTitle {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+
+/* ---- colophon --------------------------------------------------------- */
+
+.colophon {
+  border-top: 3px double var(--rule-strong);
+  padding-top: 1.25rem;
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+}
+
+.colophon p {
+  margin: 0 0 0.35rem;
+}
+
+.versions {
+  font-size: 0.75rem;
+}
+
+.offline {
+  color: var(--ink-muted);
+}
+
+.offlineDetail {
+  display: block;
+  margin-top: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  direction: ltr;
+  text-align: left;
+  word-break: break-all;
+}
+
+@media (max-width: 34rem) {
+  .row {
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .rowValue {
+    align-items: flex-end;
+    align-self: stretch;
+  }
+
+  .note {
+    text-align: left;
+  }
+}

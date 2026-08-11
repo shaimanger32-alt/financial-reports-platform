@@ -55,6 +55,7 @@ def _to_analysis(snapshot: Any, period: Any) -> ReportAnalysis:
         period_start=period.period_start.isoformat() if period.period_start else None,
         period_end=period.period_end.isoformat(),
         versions=payload["versions"],
+        line_items=payload.get("line_items", []),
         metrics=payload["metrics"],
         signals=payload["signals"],
         generated_at=snapshot.generated_at.isoformat(),

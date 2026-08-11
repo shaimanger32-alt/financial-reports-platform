@@ -1,55 +1,144 @@
 /**
  * Server-side access to the FastAPI service.
  *
- * The web app never computes financial values; it only renders what the API
- * returns (spec section 51, decision 2). This module is the single place that
- * knows the API base URL.
+ * The web app computes nothing. Every figure on screen came from a stored
+ * snapshot and arrived over this module (spec section 51, decision 2), which is
+ * what keeps one financial truth in one place.
  */
 
-export type HealthStatus = "ok" | "degraded";
+export type Severity = "info" | "positive" | "watch" | "warning" | "critical";
+export type Confidence = "low" | "medium" | "high";
+export type UnitType = "currency" | "ratio" | "days" | "count";
+export type Tier = "core" | "extended";
 
 export interface HealthResponse {
-  status: HealthStatus;
+  status: "ok" | "degraded";
   database: "ok" | "error";
   version: string;
   environment: string;
   detail?: string | null;
 }
 
-/** Result of a health probe, including the case where the API is unreachable. */
-export type HealthProbe =
-  { reachable: true; health: HealthResponse } | { reachable: false; error: string };
+export interface CompanySummary {
+  id: string;
+  display_name: string;
+  legal_name: string;
+  name_en: string | null;
+  sector: string | null;
+  country: string;
+  reporting_currency: string;
+}
+
+export interface CompanyDetail extends CompanySummary {
+  periods: string[];
+  latest_period: string | null;
+}
+
+export interface MetricValue {
+  code: string;
+  name_he: string;
+  name_en: string;
+  category: string;
+  unit_type: UnitType;
+  tier: Tier;
+  value: number | null;
+  formula_version: string;
+  warnings: string[];
+  missing_inputs: string[];
+  inputs: Record<string, number | null>;
+}
+
+export interface LineItem {
+  code: string;
+  name_he: string;
+  name_en: string;
+  category: string;
+  tier: Tier;
+  value: number | null;
+  raw_concept: string | null;
+  origin: "reported" | "derived";
+}
+
+export interface SignalValue {
+  code: string;
+  metric_code: string;
+  severity: Severity;
+  direction: "up" | "down" | "flat";
+  confidence: Confidence;
+  message_key: string;
+  rule_version: string;
+  value: number | null;
+  year_on_year_change: number | null;
+  usual_change: number | null;
+  deviation: number | null;
+  periods_persisted: number;
+}
+
+export interface ReportAnalysis {
+  company_id: string;
+  period_code: string;
+  fiscal_year: number;
+  fiscal_quarter: number;
+  period_start: string | null;
+  period_end: string;
+  versions: Record<string, string>;
+  line_items: LineItem[];
+  metrics: MetricValue[];
+  signals: SignalValue[];
+  generated_at: string;
+}
+
+export interface SeriesPoint {
+  period: string;
+  value: number | null;
+}
+
+export interface MetricSeriesResponse {
+  company_id: string;
+  metric: string;
+  name_he: string;
+  name_en: string;
+  unit_type: UnitType;
+  points: SeriesPoint[];
+}
 
 export function getApiBaseUrl(): string {
   return process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 }
 
-/**
- * Probe the API health endpoint.
- *
- * Never throws: an unreachable API is a state the page must be able to render,
- * not a crash. A 503 from the API still carries a valid body, so it is parsed.
- */
-export async function fetchHealth(): Promise<HealthProbe> {
-  const url = `${getApiBaseUrl()}/health`;
+export class ApiUnavailableError extends Error {}
+
+async function get<T>(path: string): Promise<T> {
+  const url = `${getApiBaseUrl()}${path}`;
+  let response: Response;
 
   try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
-    });
-
-    const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.includes("application/json")) {
-      return {
-        reachable: false,
-        error: `Unexpected response from ${url}: HTTP ${response.status}`,
-      };
-    }
-
-    return { reachable: true, health: (await response.json()) as HealthResponse };
+    response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8000) });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    return { reachable: false, error: `${url} — ${reason}` };
+    throw new ApiUnavailableError(`${url} — ${reason}`);
   }
+
+  if (response.status === 404) {
+    throw new NotFoundError(url);
+  }
+  if (!response.ok) {
+    throw new ApiUnavailableError(`${url} — HTTP ${response.status}`);
+  }
+  return (await response.json()) as T;
 }
+
+export class NotFoundError extends Error {}
+
+export const fetchHealth = () => get<HealthResponse>("/health");
+export const fetchCompanies = () => get<CompanySummary[]>("/v1/companies");
+export const fetchCompany = (id: string) => get<CompanyDetail>(`/v1/companies/${id}`);
+
+export const fetchLatestReport = (id: string) =>
+  get<ReportAnalysis>(`/v1/companies/${id}/reports/latest`);
+
+export const fetchReport = (id: string, period: string) =>
+  get<ReportAnalysis>(`/v1/companies/${id}/reports/${period}`);
+
+export const fetchSeries = (id: string, metric: string) =>
+  get<MetricSeriesResponse>(`/v1/companies/${id}/series/${metric}`);

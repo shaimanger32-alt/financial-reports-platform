@@ -1,26 +1,76 @@
-:root {
-  --color-bg: #ffffff;
-  --color-surface: #f7f8fa;
-  --color-border: #e2e5ea;
-  --color-text: #16181d;
-  --color-text-muted: #5d6470;
-  --color-ok: #1a7f4b;
-  --color-error: #b42318;
+/*
+ * A Hebrew financial broadsheet, not a dashboard.
+ *
+ * Spec section 44 forbids drama: "three liquidity measures weakened together",
+ * never "disaster, the company is collapsing". So the palette is ink on paper
+ * with restrained accents, and severity is carried by a small mark rather than
+ * by a shouting background.
+ *
+ * Frank Ruhl Libre is the display face. It descends from the Frank-Rühl type
+ * that set Hebrew newspapers for a century, which is exactly the register this
+ * product wants — considered, unhurried, and unmistakably Hebrew rather than a
+ * Latin font with Hebrew bolted on.
+ */
 
-  --font-sans:
-    system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans Hebrew", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+:root {
+  /* Paper and ink. Warm, not clinical white. */
+  --paper: #faf8f4;
+  --paper-raised: #ffffff;
+  --paper-sunken: #f2efe8;
+  --rule: #e0dbd1;
+  --rule-strong: #c9c2b4;
+
+  --ink: #1a1815;
+  --ink-muted: #6b6558;
+  --ink-faint: #9a9384;
+
+  /* Severity. Muted on purpose — these sit beside numbers, not above them. */
+  --positive: #2f6b46;
+  --positive-wash: #e8f0e9;
+  --watch: #8a6416;
+  --watch-wash: #f6efdd;
+  --warning: #9c4221;
+  --warning-wash: #f7e9e2;
+  --critical: #8b2c2c;
+  --critical-wash: #f6e3e3;
+  --info: #3f5871;
+  --info-wash: #e8edf3;
+
+  --accent: #7a3e2f;
+
+  --font-display: var(--font-frank), Georgia, "Times New Roman", serif;
+  --font-body: var(--font-assistant), system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --measure: 68rem;
+  --hairline: 1px solid var(--rule);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #0e1014;
-    --color-surface: #171a20;
-    --color-border: #2a2f38;
-    --color-text: #f2f4f7;
-    --color-text-muted: #9aa2b1;
-    --color-ok: #4ade80;
-    --color-error: #f87171;
+    --paper: #16151300;
+    --paper: #161513;
+    --paper-raised: #1e1c19;
+    --paper-sunken: #100f0e;
+    --rule: #322e28;
+    --rule-strong: #4a443b;
+
+    --ink: #f0ece4;
+    --ink-muted: #a09889;
+    --ink-faint: #6f6a5f;
+
+    --positive: #7fb894;
+    --positive-wash: #1c2a21;
+    --watch: #d3ac5c;
+    --watch-wash: #2a2418;
+    --warning: #d98f6b;
+    --warning-wash: #2b1e18;
+    --critical: #d97a7a;
+    --critical-wash: #2c1a1a;
+    --info: #8fabc9;
+    --info-wash: #1a2029;
+
+    --accent: #c98a72;
   }
 }
 
@@ -35,9 +85,52 @@ body {
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-sans);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
+  /* A faint paper tooth. Almost subliminal, but it stops the page reading as
+     a blank browser canvas. */
+  background-image: radial-gradient(var(--rule) 0.5px, transparent 0.5px);
+  background-size: 22px 22px;
+  background-position: -11px -11px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 0.25em;
+}
+
+a:hover {
+  text-decoration-color: var(--accent);
+}
+
+/* Every figure in this product is a figure. Tabular numerals keep columns
+   aligned down the page, which is most of what makes a ledger readable. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Latin fragments inside Hebrew text — metric codes, period labels, versions.
+   Without an explicit direction they reorder unpredictably mid-sentence. */
+.ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
 }
