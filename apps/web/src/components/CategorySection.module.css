@@ -1,0 +1,115 @@
+.section {
+  --open-ease: 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  border-bottom: var(--hairline);
+}
+
+.section:first-of-type {
+  border-top: var(--hairline);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.05rem 0.35rem;
+  cursor: pointer;
+  list-style: none;
+  transition: background 140ms ease;
+}
+
+.header::-webkit-details-marker {
+  display: none;
+}
+
+.header:hover {
+  background: var(--paper-sunken);
+}
+
+.header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* A chevron drawn from a rotated corner. In a right-to-left page it points
+   left when closed and down when open. */
+.marker {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-left: 1.5px solid var(--ink-faint);
+  border-bottom: 1.5px solid var(--ink-faint);
+  transform: rotate(45deg);
+  transition:
+    transform var(--open-ease),
+    border-color var(--open-ease);
+}
+
+.header:hover .marker {
+  border-color: var(--accent);
+}
+
+.section[open] .marker {
+  transform: rotate(-45deg) translate(-1px, -1px);
+  border-color: var(--accent);
+}
+
+.headings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--ink);
+}
+
+.intro {
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+}
+
+.count {
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.of {
+  color: var(--ink-faint);
+  opacity: 0.75;
+}
+
+.body {
+  padding: 0 0 1.1rem;
+}
+
+@supports selector(details::details-content) {
+  .section::details-content {
+    block-size: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      block-size var(--open-ease),
+      opacity 180ms ease,
+      content-visibility var(--open-ease);
+    transition-behavior: allow-discrete;
+  }
+
+  .section[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section,
+  .marker {
+    --open-ease: 0ms;
+    transition: none;
+  }
+}

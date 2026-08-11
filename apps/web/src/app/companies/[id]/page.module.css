@@ -57,7 +57,66 @@
   margin-bottom: 1.25rem;
 }
 
-/* ---- signals ---------------------------------------------------------- */
+.hint {
+  margin: -0.4rem 0 1.25rem;
+  font-size: 0.875rem;
+  color: var(--ink-faint);
+}
+
+.inlineInfo {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-style: italic;
+  line-height: 1;
+  vertical-align: -0.15em;
+  margin: 0 0.15em;
+}
+
+/* ---- headline figures -------------------------------------------------- */
+
+/* Six figures, given room. Spec section 26.2 asks for six to eight and not
+   thirty; the other twenty-nine live behind the sections below.
+   Cell borders rather than a grid gap over a coloured background: a gap leaves
+   empty tracks showing through whenever the row does not fill. */
+.headline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  border-block-start: var(--hairline);
+  border-inline-start: var(--hairline);
+}
+
+.figure {
+  padding: 1.1rem 1rem 1.2rem;
+  border-block-end: var(--hairline);
+  border-inline-end: var(--hairline);
+}
+
+.figureLabel {
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+  margin-bottom: 0.4rem;
+}
+
+.figureValue,
+.figureAbsent {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  direction: ltr;
+  text-align: right;
+  line-height: 1.15;
+}
+
+.figureAbsent {
+  color: var(--ink-faint);
+}
+
+/* ---- signals ----------------------------------------------------------- */
 
 .signals {
   list-style: none;
@@ -142,90 +201,13 @@
   font-style: italic;
 }
 
-/* ---- the ledger ------------------------------------------------------- */
+/* ---- reported lines ---------------------------------------------------- */
 
-.ledger {
+.reported {
   border-top: var(--hairline);
-  margin-bottom: 1.75rem;
 }
 
-.row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding: 0.6rem 0.15rem;
-  border-bottom: var(--hairline);
-}
-
-.rowLabel {
-  color: var(--ink-muted);
-  font-size: 0.9375rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-/* A metric every company gets, versus one that depends on what the issuer
-   happened to tag. Small enough to ignore, present enough to answer "why is
-   this blank for that company and not this one". */
-.coreMark {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--rule-strong);
-}
-
-.rowValue {
-  text-align: left;
-  direction: ltr;
-  font-size: 1.0625rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-/* A missing figure is stated, not left blank. It is the product's whole claim
-   that "we do not know" is information (spec section 4.4). */
-.absent {
-  color: var(--ink-faint);
-}
-
-.note {
-  font-size: 0.75rem;
-  color: var(--ink-faint);
-  direction: rtl;
-  text-align: right;
-  max-width: 32em;
-}
-
-.source {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  color: var(--ink-faint);
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.row:hover .source {
-  opacity: 1;
-}
-
-.category {
-  margin-bottom: 1.5rem;
-}
-
-.categoryTitle {
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 0.5rem;
-}
-
-/* ---- colophon --------------------------------------------------------- */
+/* ---- colophon ---------------------------------------------------------- */
 
 .colophon {
   border-top: 3px double var(--rule-strong);
@@ -254,20 +236,4 @@
   direction: ltr;
   text-align: left;
   word-break: break-all;
-}
-
-@media (max-width: 34rem) {
-  .row {
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-
-  .rowValue {
-    align-items: flex-end;
-    align-self: stretch;
-  }
-
-  .note {
-    text-align: left;
-  }
 }

@@ -1,0 +1,208 @@
+.row {
+  border-bottom: var(--hairline);
+}
+
+.details {
+  --open-ease: 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.65rem 0.5rem 0.65rem 0.35rem;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 3px;
+  transition: background 140ms ease;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:hover {
+  background: var(--paper-sunken);
+}
+
+.summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ink-muted);
+  font-size: 0.9375rem;
+}
+
+.summary:hover .label {
+  color: var(--ink);
+}
+
+/* A metric every company gets, versus one that depends on what the issuer
+   happened to tag. Small enough to ignore until you wonder why a figure is
+   blank for one company and not another. */
+.coreMark {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+  flex: none;
+}
+
+.info {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-style: italic;
+  line-height: 1;
+  color: var(--ink-faint);
+  transition:
+    background var(--open-ease),
+    color var(--open-ease),
+    border-color var(--open-ease),
+    transform var(--open-ease);
+}
+
+.summary:hover .info {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.details[open] .info {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper);
+  transform: rotate(360deg);
+}
+
+.valueGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  direction: ltr;
+  text-align: left;
+  min-width: 0;
+}
+
+.value {
+  font-size: 1.0625rem;
+}
+
+/* A missing figure is stated, never left blank. The product's whole claim is
+   that "we do not know" is information (spec section 4.4). */
+.absent {
+  font-size: 1.0625rem;
+  color: var(--ink-faint);
+}
+
+.note {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  direction: rtl;
+  text-align: right;
+  max-width: 30em;
+}
+
+/* -- the explanation ----------------------------------------------------- */
+
+.body {
+  padding: 0.15rem 0.75rem 1.1rem 0.35rem;
+  max-width: 46em;
+  border-right: 2px solid var(--rule);
+  margin-right: 0.35rem;
+}
+
+.body p {
+  margin: 0 0 0.4rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.what {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1rem !important;
+}
+
+.read {
+  color: var(--ink-muted);
+}
+
+.watch {
+  color: var(--ink-muted);
+}
+
+.watchLabel {
+  display: inline-block;
+  margin-left: 0.5em;
+  padding: 0.05em 0.45em;
+  border-radius: 2px;
+  background: var(--watch-wash);
+  color: var(--watch);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  vertical-align: 0.08em;
+}
+
+.source {
+  color: var(--ink-faint);
+  font-size: 0.75rem !important;
+  font-family: var(--font-mono);
+  margin-top: 0.6rem !important;
+}
+
+/* Where the browser supports it, the panel grows rather than snapping open.
+   Everywhere else it simply appears, which is a fine outcome. */
+@supports selector(details::details-content) {
+  .details::details-content {
+    block-size: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      block-size var(--open-ease),
+      opacity 160ms ease,
+      content-visibility var(--open-ease);
+    transition-behavior: allow-discrete;
+  }
+
+  .details[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .details,
+  .info {
+    --open-ease: 0ms;
+    transition: none;
+  }
+}
+
+@media (max-width: 34rem) {
+  .summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.15rem;
+  }
+
+  .valueGroup {
+    align-items: flex-end;
+  }
+
+  .note {
+    text-align: left;
+  }
+}

@@ -23,6 +23,7 @@ from ingestion.archive import RawArchive
 from ingestion.config import get_ingestion_settings
 from ingestion.core_concepts import CORE_CONCEPTS
 from ingestion.pipelines.magna import ingest_batch
+from ingestion.pipelines.snapshots import generate_snapshots
 from ingestion.providers.base import FactQuery, ProviderFact
 from ingestion.providers.magna_xbrl import (
     MagnaXbrlClient,
@@ -195,6 +196,11 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     with session_scope() as session:
         seed = seed_reference_data(session)
         report = ingest_batch(session, entity, batch)
+        # Spec section 32 step 9: the snapshot is part of ingestion, not a
+        # separate chore. A company that is loaded but has no snapshot is
+        # invisible to the API, which is a confusing half-state to leave behind.
+        company = find_company(session, args.entity)
+        snapshots = generate_snapshots(session, company) if company else None
 
     print(f"\n{entity.name_en or entity.name}")
     print(f"  reference data   {seed.metrics} metrics, {seed.mappings} mappings")
@@ -202,6 +208,8 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     print(f"  periods          {report.periods}")
     print(f"  reported facts   {report.reported_facts}")
     print(f"  derived facts    {report.derived_facts}")
+    if snapshots:
+        print(f"  snapshots        {snapshots.generated}, {snapshots.signals} signals")
     print(f"  without a value  {report.facts_without_value}")
     if report.mixed_vintage_derivations:
         print(
