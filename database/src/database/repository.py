@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database.models import AnalysisPeriod, Company, ConceptMapping, FinancialFact
+from database.models import AnalysisSnapshot as AnalysisSnapshotRow
 from financial_core.metrics import CALCULATED_BY_CODE, FactPoint, FactSet
 from financial_core.periods import DurationKind, FiscalPeriod, discrete_period
 from financial_core.quality import QualityStatus
@@ -150,3 +151,82 @@ def compute(code: str, facts: FactSet, period: FiscalPeriod) -> float | None:
     if spec is None:
         return None
     return spec.compute(facts, period).value
+
+
+def list_companies(session: Session) -> list[Company]:
+    """Every ingested company, by display name."""
+    return list(session.scalars(select(Company).order_by(Company.display_name)))
+
+
+def latest_snapshot(
+    session: Session, company_id: uuid.UUID
+) -> tuple[AnalysisSnapshotRow, AnalysisPeriod] | None:
+    """The most recent quarter with a current snapshot."""
+    row = session.execute(
+        select(AnalysisSnapshotRow, AnalysisPeriod)
+        .join(AnalysisPeriod, AnalysisSnapshotRow.period_id == AnalysisPeriod.id)
+        .where(
+            AnalysisSnapshotRow.company_id == company_id,
+            AnalysisSnapshotRow.is_current.is_(True),
+        )
+        .order_by(AnalysisPeriod.period_end.desc())
+        .limit(1)
+    ).first()
+    return (row[0], row[1]) if row else None
+
+
+def snapshot_for_period(
+    session: Session, company_id: uuid.UUID, period_code: str
+) -> tuple[AnalysisSnapshotRow, AnalysisPeriod] | None:
+    """The current snapshot for one named period."""
+    row = session.execute(
+        select(AnalysisSnapshotRow, AnalysisPeriod)
+        .join(AnalysisPeriod, AnalysisSnapshotRow.period_id == AnalysisPeriod.id)
+        .where(
+            AnalysisSnapshotRow.company_id == company_id,
+            AnalysisPeriod.code == period_code,
+            AnalysisSnapshotRow.is_current.is_(True),
+        )
+    ).first()
+    return (row[0], row[1]) if row else None
+
+
+def available_periods(session: Session, company_id: uuid.UUID) -> list[str]:
+    """Every period with a current snapshot, oldest first."""
+    return list(
+        session.scalars(
+            select(AnalysisPeriod.code)
+            .join(AnalysisSnapshotRow, AnalysisSnapshotRow.period_id == AnalysisPeriod.id)
+            .where(
+                AnalysisSnapshotRow.company_id == company_id,
+                AnalysisSnapshotRow.is_current.is_(True),
+            )
+            .order_by(AnalysisPeriod.period_end)
+        )
+    )
+
+
+def metric_history(
+    session: Session, company_id: uuid.UUID, metric_code: str
+) -> list[tuple[str, float | None]]:
+    """One metric across every snapshot, oldest first.
+
+    Read from stored snapshots rather than recomputed, so a chart and a report
+    page can never disagree (spec section 23).
+    """
+    rows = session.execute(
+        select(AnalysisPeriod.code, AnalysisSnapshotRow.payload_json)
+        .join(AnalysisSnapshotRow, AnalysisSnapshotRow.period_id == AnalysisPeriod.id)
+        .where(
+            AnalysisSnapshotRow.company_id == company_id,
+            AnalysisSnapshotRow.is_current.is_(True),
+        )
+        .order_by(AnalysisPeriod.period_end)
+    ).all()
+
+    history: list[tuple[str, float | None]] = []
+    for code, payload in rows:
+        metrics = payload.get("metrics", []) if isinstance(payload, dict) else []
+        match = next((m for m in metrics if m.get("code") == metric_code), None)
+        history.append((code, None if match is None else match.get("value")))
+    return history

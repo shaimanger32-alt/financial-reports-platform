@@ -35,6 +35,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -348,6 +349,53 @@ class FinancialFact(Base):
         back_populates="derived_fact",
         foreign_keys="FactDerivation.derived_fact_id",
         cascade="all, delete-orphan",
+    )
+
+
+class AnalysisSnapshot(Base):
+    """Everything computed for one company and period, stored once.
+
+    Spec section 23: the work happens when a filing arrives, and a page view
+    reads the result. Beyond speed and cost, this is what makes an answer
+    reproducible -- two readers a month apart see the same numbers because they
+    read the same stored object, not a re-run of an engine that may have moved.
+
+    Every version that shaped the payload is a column rather than only a key
+    inside it, so "which rules produced this" is answerable with a query
+    (section 33).
+    """
+
+    __tablename__ = "analysis_snapshot"
+    __table_args__ = (
+        UniqueConstraint(
+            "company_id", "period_id", "analysis_version", name="uq_snapshot_company_period_version"
+        ),
+        Index(
+            "ix_snapshot_current",
+            "company_id",
+            "period_id",
+            unique=True,
+            postgresql_where=text("is_current"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("company.id", ondelete="CASCADE"))
+    period_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("analysis_period.id", ondelete="CASCADE")
+    )
+
+    analysis_version: Mapped[str] = mapped_column(String(16))
+    metrics_version: Mapped[str] = mapped_column(String(16))
+    rules_version: Mapped[str] = mapped_column(String(16))
+    thresholds_version: Mapped[str] = mapped_column(String(16))
+    mappings_version: Mapped[str] = mapped_column(String(16))
+    evidence_version: Mapped[str | None] = mapped_column(String(16))
+
+    payload_json: Mapped[dict[str, object]] = mapped_column(JSONB)
+    is_current: Mapped[bool] = mapped_column(Boolean, default=True)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )
 
 

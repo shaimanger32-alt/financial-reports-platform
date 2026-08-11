@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api import __version__
 from api.config import get_api_settings
-from api.routers import health
+from api.routers import companies, health
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(companies.router)
     return app
 
 

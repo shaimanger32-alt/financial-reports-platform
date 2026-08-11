@@ -13,6 +13,7 @@ from database.config import DatabaseSettings, get_database_settings
 from database.engine import check_connection, get_engine, session_scope
 from database.models import (
     AnalysisPeriod,
+    AnalysisSnapshot,
     Company,
     ConceptMapping,
     FactDerivation,
@@ -23,6 +24,7 @@ from database.models import (
 
 __all__ = [
     "AnalysisPeriod",
+    "AnalysisSnapshot",
     "Base",
     "Company",
     "ConceptMapping",
