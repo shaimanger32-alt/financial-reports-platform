@@ -15,9 +15,10 @@ import sys
 from collections.abc import Sequence
 
 from database import session_scope
-from database.repository import find_company, load_fact_set
+from database.repository import find_company, load_fact_set, load_metric_series
 from financial_core.metrics import CALCULATED_BY_CODE, compute_all
 from financial_core.periods import cumulative_period, discrete_period
+from financial_core.signals import ALL_RULES, CORE_RULES, DEFAULT_THRESHOLDS, evaluate_all
 from ingestion.archive import RawArchive
 from ingestion.config import get_ingestion_settings
 from ingestion.core_concepts import CORE_CONCEPTS
@@ -283,6 +284,47 @@ def cmd_metrics(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_signals(args: argparse.Namespace) -> int:
+    """Show what the engine notices about a company, and what it stays quiet on."""
+    with session_scope() as session:
+        company = find_company(session, args.entity)
+        if company is None:
+            print(f"{args.entity} has not been ingested; run `ingest` first")
+            return 1
+
+        rules = CORE_RULES if args.core_only else ALL_RULES
+        watched = sorted({rule.metric_code for rule in rules})
+        series = load_metric_series(session, company.id, watched, quarters=args.quarters)
+        signals = evaluate_all(rules, series, DEFAULT_THRESHOLDS, company.sector_name)
+        name = company.name_en or company.display_name
+
+    print(f"\n{name}   thresholds {DEFAULT_THRESHOLDS.version}, {len(watched)} metrics watched\n")
+
+    if not signals:
+        print("  nothing unusual against this company's own history")
+    for signal in signals:
+        change = signal.inputs.get("year_on_year_change")
+        usual = signal.inputs.get("usual_change")
+        print(f"  [{signal.severity.value:<8}] {signal.code}  ({signal.period.code})")
+        print(
+            f"             year on year {change:+,.2f}, usually {usual:+,.2f}, "
+            f"{signal.deviation:+.1f} robust units"
+        )
+        print(
+            f"             confidence {signal.confidence.value}, "
+            f"persisted {signal.periods_persisted} period(s)"
+        )
+
+    quiet = [
+        code
+        for code in watched
+        if series.get(code) and all(o.value is None for o in series[code].observations)
+    ]
+    if quiet:
+        print(f"\n  no data at all for: {', '.join(quiet)}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ingestion.cli", description=__doc__)
     parser.add_argument("--verbose", action="store_true", help="log HTTP and parsing detail")
@@ -324,6 +366,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--cumulative", action="store_true", help="year to date rather than the quarter alone"
     )
     metrics.set_defaults(func=cmd_metrics)
+
+    signals = sub.add_parser("signals", help="what the engine notices about a company")
+    signals.add_argument("--entity", required=True)
+    signals.add_argument("--quarters", type=int, default=16)
+    signals.add_argument(
+        "--core-only", action="store_true", help="only rules that fire for every company"
+    )
+    signals.set_defaults(func=cmd_signals)
 
     return parser
 

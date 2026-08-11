@@ -5,6 +5,7 @@ intention and never an accusation (spec sections 15 and 42).
 """
 
 from financial_core.signals.baseline import Baseline, build_baseline, consecutive_run
+from financial_core.signals.defaults import DEFAULT_THRESHOLD_VERSION, DEFAULT_THRESHOLDS
 from financial_core.signals.engine import (
     MetricObservation,
     MetricSeries,
@@ -24,6 +25,8 @@ from financial_core.signals.thresholds import THRESHOLD_VERSION, Threshold, Thre
 __all__ = [
     "ALL_RULES",
     "CORE_RULES",
+    "DEFAULT_THRESHOLDS",
+    "DEFAULT_THRESHOLD_VERSION",
     "EXTENDED_RULES",
     "RULES_BY_CODE",
     "THRESHOLD_VERSION",

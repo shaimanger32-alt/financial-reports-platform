@@ -182,36 +182,58 @@ Which is correct?
 
 ---
 
-## Open question D — initial threshold values
+## Question D — initial threshold values
 
-Section 17 specifies the _shape_ of a threshold but gives no values. The signal
-engine cannot run without them. For example: what magnitude of DSO increase is
-"material" — an absolute number of days, a relative change, or a deviation from
-the company's own history?
+**Decided.** Two bars, both of which a movement must clear.
 
-Section 17 sets the priority order: defined magnitude first, then the company
-against its own history, then consistency across periods, and peer medians only
-once coverage allows.
+**The company's own history decides whether a move is unusual.** Spec section 17
+puts this second in its order of preference, and it is the part that needs no
+invented number: a fifteen day move in collection says nothing at a company that
+moves fifteen days every quarter, and everything at one that has never moved by
+three. Median and median absolute deviation are used rather than mean and
+standard deviation, because financial series are short and a single acquisition
+would inflate a standard deviation enough to hide everything that followed.
 
-**Unresolved.**
+Everything is measured on the **year-on-year change**, not the level. Comparing
+levels across adjacent quarters mistakes seasonality for news: a retailer's
+fourth quarter is meant to look unlike its third. Section 14.1 makes year on
+year the default comparison anyway.
 
-### One threshold had to be chosen to build the metric engine
+**A floor decides whether the move is worth mentioning at all.** This is the only
+genuinely judgemental number, and it exists because statistical unusualness and
+financial relevance are different things: a company whose collection period has
+sat at exactly 50.0 days for three years moving to 50.4 is infinitely many
+robust units from its norm and still a rounding artefact.
 
-Section 13.3 requires cash conversion to be computed only when trailing net
-income is "positive and material", without saying what material means. Refusing
-to pick a level would have made the metric permanently null, so a provisional
-one is in the code:
+The principle behind each floor is the smallest move a careful reader would
+still describe out loud — not the smallest detectable one, and not one tuned to
+produce a pleasing number of signals.
 
-```
-CASH_CONVERSION_MATERIALITY = 0.01   # 1% of trailing revenue
-```
+| Metric                     | Floor  | Why                                                   |
+| -------------------------- | ------ | ----------------------------------------------------- |
+| DSO, DIO, growth gaps      | 5 days | Under a week is when invoices happen to clear         |
+| Gross and operating margin | 1.0 pp | Below that, mix explains more than performance        |
+| Current and quick ratio    | 0.10   | The smallest step at which the usual readings change  |
+| Leverage                   | 0.25   | Same reasoning, on a measure that ranges wider        |
+| Equity ratio, growth rates | 5 pp   | A twentieth of the balance sheet, or of a growth rate |
+| Cash conversion            | 0.15   | 0.85 rather than 1.00 is worth saying; 0.98 is not    |
+| Accruals proxy             | 2 pp   | Scaled by assets, so it moves in small numbers        |
 
-Below that, the ratio is `null` with an `immaterial_denominator` warning rather
-than an enormous number produced by a denominator near zero.
+Thresholds are versioned data at `v1`, not constants in logic (section 0,
+rule 8). None is calibrated against a peer distribution: there is not yet enough
+coverage to build one, which is why section 17 puts peer medians last.
 
-**This value is a placeholder and needs confirming.** It is a named constant in
-`financial_core/metrics/formulas.py` under formula version `v1`, so changing it
-is a version change and not a silent edit.
+### What this produces in practice
+
+Run against the two ingested companies, sixteen quarters each:
+
+- **Matrix IT** — one signal, margin expansion, positive.
+- **Hilan** — two signals, both concerning: cash conversion fell well below its
+  usual year-on-year move, and the accruals proxy rose above its own. They are
+  two views of the same thing, which is what pattern P2 exists to combine.
+
+Three signals across two companies is the intended order of magnitude. An engine
+that finds thirty things wrong with every company is not being observant.
 
 ---
 
