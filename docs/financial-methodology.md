@@ -9,10 +9,13 @@ Nothing here is settled by an engineer alone. Spec section 0, rule 8 requires
 thresholds to be configurable and versioned; this file is where their meaning is
 justified.
 
-Status: **phase 2 in progress.** Questions A, F and G are decided (see
-[0009](decisions/0009-reported-and-derived-are-both-kept.md)) and the period
-model is implemented. B to E remain open and block phases 2 to 4.
-Everything under "What the phase 1 spike established" is measured, not assumed.
+Status: **phases 0 to 4 complete, phase 5 half done.** Questions A, B, D, F, G
+and I are decided; C, E and H remain open. Everything under "What the phase 1
+spike established" is measured, not assumed.
+
+The product now leads with the **United States**, through SEC EDGAR. The Israeli
+findings below still hold for the Israeli market and are kept: they are what
+decisions 0009 and 0010 rest on, and 0011 amends 0010 for the American one.
 
 ---
 
@@ -169,16 +172,37 @@ start — even for a row written outside the application.
 
 ---
 
-## Open question C — Report Pulse colour rules
+## Question C — Report Pulse dimensions and states
 
-Spec section 6.1 defines six dimensions and three states (🟢 / 🟡 / 🔴) but no
-rule that maps metrics to a state. Report Pulse is an MVP deliverable
-(section 48, item 7).
+**Decided by Shay, 2026-08-12: five dimensions.** Section 6.1 lists six and
+section 26.2 shows five; Shareholder Quality is dropped. The reason is coverage
+rather than importance — dilution resolves for some issuers and not others, and
+a band reading "not reported" at half the market teaches a reader to skip the
+whole panel.
 
-Section 26.2 also shows only five dimensions, dropping Shareholder Quality.
-Which is correct?
+**No new threshold was invented for the states, and that was the constraint.** A
+dimension's state is read off the signals that already fired in it, and those
+carry severities settled in question D:
 
-**Unresolved.**
+| what fired                          | state        |
+| ----------------------------------- | ------------ |
+| a `warning` or `critical` signal    | weak         |
+| a `watch` signal                    | watch        |
+| only `positive` signals             | strong       |
+| nothing, and metrics resolve        | stable       |
+| no metric in the dimension resolves | not reported |
+
+An `info` signal moves nothing. A tax rate ticking up is worth saying and is not
+a change in how profitable the company is.
+
+`not reported` is a state rather than a blank, because the difference matters:
+JPMorgan's working capital band reads "not reported" because a bank has no
+collection days and no inventory. Reporting that as "stable" would be the
+plainest possible breach of section 4.4.
+
+So Report Pulse establishes nothing the signal engine had not. It regroups it
+into the five questions a reader arrives with, and every band names the signals
+it was read from so it can be checked.
 
 ---
 
@@ -311,6 +335,63 @@ These stay `null` rather than being assembled from whatever was to hand.
 
 ---
 
+## Open question H — how P2 recognises an earnings-quality gap
+
+Spec section 16 words P2 as `Net Income ↑` together with `OCF ↓/growing less`,
+elevated accruals and weak cash conversion.
+
+Taken literally, that rule does not fire on the case it was written for. Hilan's
+2025-Q4 is the only earnings-quality divergence in the data: cash conversion fell
+0.26 against a usual move of +0.17, and the accruals proxy rose 2.23pp against a
+usual -1.62pp — sitting at -4.39 and +4.36 robust units, which is the same event
+measured from two sides. Its net income fell 1.9% over the same year. Requiring
+profit to have risen would leave P2 silent everywhere it can currently be
+checked.
+
+The rule as built is therefore written on the divergence rather than on the
+direction of profit: **two of the three views of the gap** — cash conversion
+down, accruals up, operating cash flow growth down — with profit acceleration
+recorded as corroboration when present. Every input is `CORE`, so P2 works for
+every issuer including banks.
+
+**Awaiting Shay's confirmation.** The alternative is the literal reading of
+section 16, which is faithful to the spec and produces nothing on any company we
+hold. Reversing it is a change to `required_signals` and `minimum_required` on
+one rule in `financial_core/patterns/rules.py`.
+
+### A pattern rule carries prerequisites as well as a pool
+
+Section 16 lists `required_signals` and `minimum_required`, which count matches
+out of one pool. P1 cannot be written that way. Its wording says revenue grew,
+and Electra's 2025-Q3 has both of P1's quality concerns — collection lengthened,
+receivables outgrew revenue — with no revenue signal at all. Counting out of one
+pool would fire P1 there and tell a reader that growth needs checking at a
+company that did not grow.
+
+`PatternRule.prerequisite_signals` is therefore a field the spec does not list:
+signals that must **all** be present, because the pattern's wording rests on
+them. P1 uses it for revenue; P2 does not use it at all. The pool and its
+minimum are unchanged for everything else.
+
+P1's own minimum is one concern, taken from section 16's output sentence —
+"הגבייה התארכה **ו/או** המרווח נשחק" — rather than chosen. On the current data
+both readings give the same result, since the only match has two concerns.
+
+---
+
+## Question I — terms of use for SEC EDGAR
+
+**Decided by Shay, 2026-08-12.** Commercial and public use of the SEC EDGAR API
+is cleared. Spec section 7.4 required a licensing review before a commercial
+launch; for the American source that review is done and the answer is yes.
+
+This does **not** extend to the Israeli sources. MAGNA and MAYA were never
+reviewed, and the TASE data products examined on the same day price internal use
+only, with distribution not offered at all — which is what a public site would
+be. Publishing Israeli companies remains gated on a separate answer.
+
+---
+
 ## Recorded conventions
 
 These follow directly from the spec and are not open:
@@ -333,3 +414,13 @@ These follow directly from the spec and are not open:
   normalisation step (section 14.6).
 - Confidence is a product classification, not a statistical probability
   (section 20).
+- **A period we do not hold is said out loud.** When a quarter's report cannot be
+  retrieved, the reader is told that the report for that quarter is unavailable.
+  It is never filled in, never estimated from the periods around it, and never
+  skipped silently so that the gap reads as though the quarter did not exist.
+  This is rule 1 — missing is unknown — carried into the presentation layer.
+  There are no interior gaps in the data today; the cases that need the wording
+  are the ends of a series, such as Matrix IT stopping at 2024-Q4.
+- **A pattern is a combination of signals and nothing more** (section 16). It
+  groups observations that are already true; it does not add a reason for them,
+  and grouping never raises severity above the most severe member.

@@ -14,8 +14,19 @@ from sqlalchemy.orm import Session
 
 from database.models import AnalysisPeriod, Company
 from database.models import AnalysisSnapshot as AnalysisSnapshotRow
-from database.repository import load_fact_set, load_metric_series
-from financial_core.analysis import ANALYSIS_VERSION, AnalysisSnapshot, build_snapshot
+from database.repository import (
+    load_annual_metric_series,
+    load_fact_set,
+    load_metric_series,
+    restatements,
+)
+from financial_core.analysis import (
+    ANALYSIS_VERSION,
+    AnalysisSnapshot,
+    RestatementView,
+    build_snapshot,
+)
+from financial_core.metrics import DEFAULT_TIERING, TIERINGS_BY_CODE
 from financial_core.periods import DurationKind, FiscalPeriod
 from financial_core.signals import ALL_RULES, MetricSeries
 
@@ -29,6 +40,9 @@ class SnapshotReport:
     generated: int
     periods: tuple[str, ...]
     signals: int
+    patterns: int = 0
+    annual: int = 0
+    restatements: int = 0
 
 
 def generate_snapshots(
@@ -37,20 +51,36 @@ def generate_snapshots(
     quarters: int = 16,
     mapping_version: str = "v1",
 ) -> SnapshotReport:
-    """Build a snapshot for every discrete quarter the company has data for.
+    """Build a snapshot for every discrete quarter and every full fiscal year.
 
-    Only discrete quarters get one. A year-to-date figure and a quarter answer
-    different questions, and giving both a snapshot invites a reader to compare
-    them (spec section 14.6).
+    Year-to-date windows deliberately get none. A nine-month figure and a
+    quarter answer different questions, and giving both a snapshot invites a
+    reader to compare them (spec section 14.6). A full year is a different
+    matter: it is a complete, self-contained period a reader genuinely wants.
+
+    The two are kept strictly apart. An annual snapshot is built from an annual
+    series, where "the same period a year earlier" is the previous year rather
+    than four entries back — passing the quarterly series would compare a year
+    against a quarter and produce a confident, meaningless number.
     """
     facts = load_fact_set(session, company.id)
     watched = sorted({rule.metric_code for rule in ALL_RULES})
     series = load_metric_series(session, company.id, watched, quarters=quarters)
+    annual_series = load_annual_metric_series(session, company.id, watched)
+    # Decision 0009: a disagreement between two of a company's own filings is
+    # surfaced, never resolved silently. The engine prefers the later value; the
+    # reader is told that it did.
+    restated = restatements(session, company.id, provider=company.provider)
 
     quarter_periods = [
         period
         for period in facts.periods(duration_kind=DurationKind.QUARTER)
         if period.duration_kind is DurationKind.QUARTER
+    ]
+    annual_periods = [
+        period
+        for period in facts.periods(duration_kind=DurationKind.ANNUAL)
+        if period.duration_kind is DurationKind.ANNUAL
     ]
 
     rows = {
@@ -62,26 +92,59 @@ def generate_snapshots(
 
     generated: list[str] = []
     total_signals = 0
+    total_patterns = 0
+    total_annual = 0
+    total_restatements = 0
 
-    for period in sorted(quarter_periods):
+    for period in sorted(quarter_periods + annual_periods):
         period_row = rows.get(period.code)
         if period_row is None:
             continue
+
+        is_annual = period.duration_kind is DurationKind.ANNUAL
+        source = annual_series if is_annual else series
 
         snapshot = build_snapshot(
             company_id=str(company.id),
             period=period,
             facts=facts,
-            series_by_metric=_series_up_to(series, period),
+            series_by_metric=_series_up_to(source, period),
             mapping_version=mapping_version,
             sector=company.sector_name,
+            # Decision 0011: whether a metric is CORE depends on the market the
+            # company reports in. The current ratio is CORE in Israel and
+            # EXTENDED in the United States, where 11% of issuers present no
+            # current asset split at all.
+            tiering=TIERINGS_BY_CODE.get(company.market, DEFAULT_TIERING),
+            restatements=[
+                RestatementView(
+                    metric_code=item.metric_code,
+                    superseded_value=item.superseded_value,
+                    current_value=item.current_value,
+                    superseded_filing=item.superseded_filing,
+                    current_filing=item.current_filing,
+                    relative_difference=item.relative_difference,
+                )
+                for item in restated.get(period.code, ())
+            ],
         )
         _store(session, company, period_row, snapshot)
         generated.append(period.code)
+        if is_annual:
+            total_annual += 1
+        total_restatements += len(snapshot.restatements)
         total_signals += len(snapshot.signals)
+        total_patterns += len(snapshot.patterns)
 
     session.flush()
-    return SnapshotReport(generated=len(generated), periods=tuple(generated), signals=total_signals)
+    return SnapshotReport(
+        generated=len(generated),
+        periods=tuple(generated),
+        signals=total_signals,
+        patterns=total_patterns,
+        annual=total_annual,
+        restatements=total_restatements,
+    )
 
 
 def _series_up_to(series: dict[str, MetricSeries], period: FiscalPeriod) -> dict[str, MetricSeries]:
@@ -124,6 +187,7 @@ def _store(
         existing.rules_version = versions.rules
         existing.thresholds_version = versions.thresholds
         existing.mappings_version = versions.mappings
+        existing.patterns_version = versions.patterns
         existing.is_current = True
         return
 
@@ -144,6 +208,7 @@ def _store(
             rules_version=versions.rules,
             thresholds_version=versions.thresholds,
             mappings_version=versions.mappings,
+            patterns_version=versions.patterns,
             payload_json=snapshot.to_payload(),
             is_current=True,
         )

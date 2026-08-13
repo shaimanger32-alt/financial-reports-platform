@@ -770,20 +770,27 @@ def equity_ratio(facts: FactSet, period: FiscalPeriod) -> MetricResult:
 def liabilities_to_equity(facts: FactSet, period: FiscalPeriod) -> MetricResult:
     """Total liabilities over equity.
 
-    Total liabilities is tagged by only a third of issuers, so the two halves of
-    the balance sheet are summed instead -- both of which every issuer tags.
+    Total liabilities is a thinly tagged subtotal -- a third of Israeli issuers
+    and 66% of American ones -- so it is reached from the accounting identity
+    instead: liabilities are assets less equity, and both of those are tagged by
+    every issuer in both markets.
+
+    Summing current and non-current liabilities would give the same figure and
+    was the earlier approach. It was wrong for the American market, where US
+    GAAP does not require a current/non-current split at all: a bank orders its
+    balance sheet by liquidity, tags neither half, and this metric went null for
+    every one of them despite both of its real inputs being present.
+
     Negative equity makes the ratio meaningless rather than merely large.
     """
-    current = balance_at(facts, "current_liabilities", period)
-    non_current = balance_at(facts, "non_current_liabilities", period)
+    assets = balance_at(facts, "total_assets", period)
     equity = balance_at(facts, "total_equity", period)
     inputs = {
-        "current_liabilities": current,
-        "non_current_liabilities": non_current,
+        "total_assets": assets,
         "total_equity": equity,
     }
 
-    if current is None or non_current is None or equity is None:
+    if assets is None or equity is None:
         return _result(
             "liabilities_to_equity",
             period,
@@ -802,7 +809,7 @@ def liabilities_to_equity(facts: FactSet, period: FiscalPeriod) -> MetricResult:
             warnings=(MetricWarning.NEGATIVE_DENOMINATOR,),
         )
     return _result(
-        "liabilities_to_equity", period, (current + non_current) / equity, UnitType.RATIO, inputs
+        "liabilities_to_equity", period, (assets - equity) / equity, UnitType.RATIO, inputs
     )
 
 

@@ -90,8 +90,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.1rem;
-  direction: ltr;
-  text-align: left;
+  text-align: end;
   min-width: 0;
 }
 
@@ -109,18 +108,18 @@
 .note {
   font-size: 0.75rem;
   color: var(--ink-faint);
-  direction: rtl;
-  text-align: right;
+  text-align: end;
   max-width: 30em;
 }
 
 /* -- the explanation ----------------------------------------------------- */
 
 .body {
-  padding: 0.15rem 0.75rem 1.1rem 0.35rem;
+  padding-block: 0.15rem 1.1rem;
+  padding-inline: 0.75rem 0.35rem;
   max-width: 46em;
-  border-right: 2px solid var(--rule);
-  margin-right: 0.35rem;
+  border-inline-start: 2px solid var(--rule);
+  margin-inline-start: 0.35rem;
 }
 
 .body p {
@@ -145,7 +144,7 @@
 
 .watchLabel {
   display: inline-block;
-  margin-left: 0.5em;
+  margin-inline-end: 0.5em;
   padding: 0.05em 0.45em;
   border-radius: 2px;
   background: var(--watch-wash);
@@ -203,6 +202,6 @@
   }
 
   .note {
-    text-align: left;
+    text-align: start;
   }
 }

@@ -13,8 +13,13 @@ import collections
 import logging
 import sys
 from collections.abc import Sequence
+from typing import Any
+
+from sqlalchemy import select
 
 from database import session_scope
+from database.models import AnalysisSnapshot as AnalysisSnapshotRow
+from database.models import Company
 from database.repository import find_company, load_fact_set, load_metric_series
 from financial_core.metrics import CALCULATED_BY_CODE, compute_all
 from financial_core.periods import cumulative_period, discrete_period
@@ -209,7 +214,10 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     print(f"  reported facts   {report.reported_facts}")
     print(f"  derived facts    {report.derived_facts}")
     if snapshots:
-        print(f"  snapshots        {snapshots.generated}, {snapshots.signals} signals")
+        print(
+            f"  snapshots        {snapshots.generated}, "
+            f"{snapshots.signals} signals, {snapshots.patterns} patterns"
+        )
     print(f"  without a value  {report.facts_without_value}")
     if report.mixed_vintage_derivations:
         print(
@@ -249,6 +257,202 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         )
 
     return 0
+
+
+def cmd_ingest_us(args: argparse.Namespace) -> int:
+    """Load one American company from SEC EDGAR.
+
+    The fiscal calendar is learned before anything is classified. A company that
+    has filed no annual report yet declares no fiscal years, and nothing can be
+    placed on a calendar that does not exist -- so it is refused rather than
+    forced onto December.
+    """
+    import json as _json
+
+    from ingestion.pipelines.sec_edgar import ingest_batch as ingest_us_batch
+    from ingestion.providers.sec_edgar import SecEdgarClient, learn_fiscal_calendar, normalise_cik
+
+    client = SecEdgarClient()
+    entities = {e.provider_entity_id: e for e in client.list_entities()}
+
+    requested = [normalise_cik(value) for value in args.cik]
+    unknown = [cik for cik in requested if cik not in entities]
+    if unknown:
+        print(f"not in SEC's ticker index: {', '.join(unknown)}")
+        return 1
+
+    failures = 0
+    for cik in requested:
+        entity = entities[cik]
+        batch = client.fetch_facts(
+            FactQuery(entity_ids=(cik,), from_year=args.from_year, to_year=args.to_year)
+        )
+        calendar = learn_fiscal_calendar(_json.loads(batch.raw_payload))
+
+        if args.archive:
+            _archive(batch.raw_payload, "companyfacts", batch.source_reference)
+
+        if calendar.is_empty:
+            print(f"{entity.name}: no annual report, so no fiscal calendar. Nothing loaded.")
+            failures += 1
+            continue
+
+        with session_scope() as session:
+            seed_reference_data(session)
+            report = ingest_us_batch(session, entity, batch, calendar)
+            company = find_company(session, cik, provider="sec_edgar")
+            if company is not None and args.publish:
+                company.is_published = True
+            snapshots = generate_snapshots(session, company) if company else None
+
+        published = "published" if args.publish else "not published"
+        print(
+            f"{entity.name[:34]:36} CIK {cik}  "
+            f"FY {report.fiscal_years:>2}  facts {report.facts:>6,}  "
+            f"snapshots {snapshots.generated if snapshots else 0:>3}  "
+            f"signals {snapshots.signals if snapshots else 0:>3}  "
+            f"patterns {snapshots.patterns if snapshots else 0:>2}  {published}"
+        )
+
+    return 1 if failures else 0
+
+
+def cmd_snapshots(args: argparse.Namespace) -> int:
+    """Rebuild snapshots for every company, without touching a provider.
+
+    Ingestion writes a snapshot as it goes, but a change to a formula, a rule or
+    a tiering leaves every stored snapshot describing the old engine. Re-running
+    ingestion to pick that up would re-download the whole market for no reason,
+    and would silently depend on the provider still being reachable.
+    """
+    with session_scope() as session:
+        seed_reference_data(session)
+        companies = list(session.scalars(select(Company).order_by(Company.display_name)))
+        if args.entity:
+            companies = [c for c in companies if c.provider_entity_id in set(args.entity)]
+
+        total = signals = patterns = 0
+        for company in companies:
+            report = generate_snapshots(session, company)
+            total += report.generated
+            signals += report.signals
+            patterns += report.patterns
+            print(
+                f"  {(company.name_en or company.legal_name)[:34]:36} "
+                f"{report.generated:>4} snapshots  {report.signals:>3} signals  "
+                f"{report.patterns:>2} patterns"
+            )
+
+    print(
+        f"\n{len(companies)} companies, {total} snapshots, {signals} signals, {patterns} patterns"
+    )
+    return 0
+
+
+def cmd_quality(args: argparse.Namespace) -> int:
+    """Where the accounting identities do not close.
+
+    A development tool, deliberately not a page. A broken identity is far more
+    often our mapping than the issuer's arithmetic, so the audience for it is
+    whoever can fix the mapping -- not a reader, who would be told that a
+    perfectly sound filing does not add up.
+
+    `unreported terms` is the first thing to look at. A cash bridge off by a
+    fraction at a company that filed no exchange-rate line is a gap in our
+    concept chain; one at a company that filed the line is worth opening the
+    filing for.
+    """
+    from financial_core.validation import IdentityOutcome
+
+    with session_scope() as session:
+        companies = list(session.scalars(select(Company).order_by(Company.display_name)))
+        rows: list[tuple[str, str, dict[str, Any]]] = []
+        totals: collections.Counter[str] = collections.Counter()
+
+        for company in companies:
+            snapshots = [
+                row.payload_json
+                for row in session.scalars(
+                    select(AnalysisSnapshotRow).where(
+                        AnalysisSnapshotRow.company_id == company.id,
+                        AnalysisSnapshotRow.is_current,
+                    )
+                )
+            ]
+            if not snapshots:
+                continue
+            typed: list[dict[str, Any]] = [dict(payload) for payload in snapshots]
+            chosen = (
+                typed if args.all_periods else [max(typed, key=lambda p: str(p["period_code"]))]
+            )
+
+            name = company.name_en or company.legal_name
+            for payload in chosen:
+                identities = payload.get("identities") or []
+                if not identities:
+                    totals["no_checks_stored"] += 1
+                for identity in identities:
+                    outcome = str(identity["outcome"])
+                    totals[outcome] += 1
+                    if outcome == IdentityOutcome.BROKEN.value or args.verbose_checks:
+                        rows.append((name, str(payload["period_code"]), identity))
+
+    basics = _basic_findings(args)
+
+    scope = "every period" if args.all_periods else "the latest period of each company"
+    print(f"Accounting identities across {len(companies)} companies, {scope}\n")
+    for outcome, count in sorted(totals.items()):
+        print(f"  {outcome:18} {count}")
+
+    if not rows:
+        print("\nNothing broken.")
+        return 0
+
+    print(f"\n{'company':32} {'period':10} {'identity':40} {'gap':>9}  note")
+    print("-" * 110)
+    for name, period, identity in rows:
+        relative = identity.get("relative_difference")
+        gap = f"{float(relative) * 100:.2f}%" if isinstance(relative, int | float) else "-"
+        unreported = identity.get("unreported_terms") or []
+        missing = identity.get("missing") or []
+        if unreported:
+            note = f"no {', '.join(str(t) for t in unreported)} filed -- likely our mapping"
+        elif missing:
+            note = f"not checkable: {', '.join(str(m) for m in missing)}"
+        else:
+            note = "every term present -- worth opening the filing"
+        print(f"  {name[:30]:32} {period:10} {str(identity['name'])[:38]:40} {gap:>9}  {note}")
+
+    if basics:
+        print(f"\nBasic validation (section 21.1): {len(basics)} findings")
+        print(f"\n  {'company':30} {'issue':26} {'metric':28} detail")
+        print("  " + "-" * 108)
+        for name, finding in basics:
+            print(
+                f"  {name[:28]:30} {finding.issue.value:26} "
+                f"{finding.metric_code[:26]:28} {finding.detail}"
+            )
+    else:
+        print("\nBasic validation (section 21.1): nothing.")
+
+    broken = totals.get(IdentityOutcome.BROKEN.value, 0)
+    return 1 if (broken or basics) and args.strict else 0
+
+
+def _basic_findings(args: argparse.Namespace) -> list[tuple[str, Any]]:
+    """Units, contradictory duplicates and values that cannot exist."""
+    from database.repository import reported_observations
+    from financial_core.validation import check_basics
+
+    found: list[tuple[str, Any]] = []
+    with session_scope() as session:
+        for company in session.scalars(select(Company).order_by(Company.display_name)):
+            if args.entity and company.provider_entity_id not in set(args.entity):
+                continue
+            name = company.name_en or company.legal_name
+            for finding in check_basics(reported_observations(session, company.id)):
+                found.append((name, finding))
+    return found
 
 
 def cmd_metrics(args: argparse.Namespace) -> int:
@@ -365,6 +569,44 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--to-year", type=int, required=True)
     ingest.add_argument("--archive", action="store_true")
     ingest.set_defaults(func=cmd_ingest)
+
+    ingest_us = sub.add_parser("ingest-us", help="load one US company from SEC EDGAR")
+    ingest_us.add_argument(
+        "--cik", required=True, nargs="+", help="one or more SEC CIKs, e.g. 320193 789019"
+    )
+    # Six years is enough for a year-on-year comparison plus the history the
+    # baseline needs to call a move unusual, without loading two decades of
+    # filings nobody will read. It is an ingestion window, not a financial rule.
+    ingest_us.add_argument("--from-year", type=int, default=2020)
+    ingest_us.add_argument("--to-year", type=int, default=2026)
+    ingest_us.add_argument("--archive", action="store_true")
+    ingest_us.add_argument(
+        "--publish", action="store_true", help="make it visible to the API straight away"
+    )
+    ingest_us.set_defaults(func=cmd_ingest_us)
+
+    snapshots = sub.add_parser(
+        "snapshots", help="rebuild stored analysis without calling a provider"
+    )
+    snapshots.add_argument(
+        "--entity", nargs="*", help="limit to these provider entity ids (CIK or registrar number)"
+    )
+    snapshots.set_defaults(func=cmd_snapshots)
+
+    quality = sub.add_parser(
+        "quality", help="where the accounting identities do not close (development tool)"
+    )
+    quality.add_argument(
+        "--all-periods", action="store_true", help="every stored period, not just the latest"
+    )
+    quality.add_argument(
+        "--verbose-checks", action="store_true", help="list identities that held too"
+    )
+    quality.add_argument(
+        "--strict", action="store_true", help="exit non-zero when anything is broken"
+    )
+    quality.add_argument("--entity", nargs="*", help="limit to these provider entity ids")
+    quality.set_defaults(func=cmd_quality)
 
     metrics = sub.add_parser("metrics", help="computed metrics for one period, for hand checking")
     metrics.add_argument("--entity", required=True)

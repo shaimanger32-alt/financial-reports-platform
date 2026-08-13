@@ -116,15 +116,31 @@ class FiscalPeriod:
 
         Q1 is both a discrete quarter and the first year-to-date period. It is
         classified as a quarter, and this property still reports the truth.
+
+        Derived from the period's shape rather than from its start date, because
+        a fiscal year does not have to open on 1 January. Apple's opens in late
+        September.
         """
-        return self.start == fiscal_year_start(self.fiscal_year)
+        if self.period_kind is PeriodKind.INSTANT:
+            return False
+        return self.duration_kind in {DurationKind.YTD, DurationKind.ANNUAL} or (
+            self.duration_kind is DurationKind.QUARTER and self.fiscal_quarter == 1
+        )
 
     @property
     def code(self) -> str:
-        """Stable, sortable identifier used in APIs and URLs."""
+        """Stable, sortable identifier used in APIs and URLs.
+
+        The code names a fiscal position and carries no dates. It is the key
+        every fact lookup goes through, so a balance sheet struck on 27 December
+        has to be addressable as the quarter it closes without the caller
+        knowing which day that was. Reconstructing `31 December` to look one up
+        is exactly the assumption that made this system reject every American
+        filer.
+        """
         match self.period_kind, self.duration_kind:
             case PeriodKind.INSTANT, _:
-                return f"{self.fiscal_year}-Q{self.fiscal_quarter}-AT-{self.end.isoformat()}"
+                return f"{self.fiscal_year}-Q{self.fiscal_quarter}-AT"
             case _, DurationKind.ANNUAL:
                 return f"{self.fiscal_year}-FY"
             case _, DurationKind.YTD:

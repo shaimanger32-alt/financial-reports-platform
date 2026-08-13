@@ -1,0 +1,107 @@
+/* Five rows, read in two seconds. The mark carries the state; the word repeats
+   it, because colour alone is not a way to tell anyone anything. */
+
+.block {
+  margin-bottom: 3rem;
+}
+
+.blockTitle {
+  font-family: var(--font-assistant), system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.5rem;
+  border-bottom: var(--hairline);
+}
+
+.bands {
+  margin: 0;
+  display: grid;
+  gap: 0;
+}
+
+.band {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.35rem;
+  border-bottom: var(--hairline);
+}
+
+.band:last-child {
+  border-bottom: none;
+}
+
+.name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+
+.state {
+  margin: 0;
+  font-family: var(--font-assistant), system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.band[data-state="strong"] .mark {
+  background: var(--positive, #3f6f4f);
+}
+
+.band[data-state="stable"] .mark {
+  background: var(--rule-strong);
+}
+
+.band[data-state="watch"] .mark {
+  background: var(--accent);
+}
+
+.band[data-state="weak"] .mark {
+  background: var(--warning);
+}
+
+/* Not reported is hollow rather than coloured. It is the absence of a reading,
+   and giving it a colour would make it look like one. */
+.band[data-state="no_data"] .mark {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--rule);
+}
+
+.band[data-state="no_data"] .name,
+.band[data-state="no_data"] .state {
+  color: var(--ink-faint);
+}
+
+.band[data-state="strong"] .state {
+  color: var(--positive, #3f6f4f);
+}
+
+.band[data-state="watch"] .state {
+  color: var(--accent);
+}
+
+.band[data-state="weak"] .state {
+  color: var(--warning);
+}
+
+.note {
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--ink-faint);
+}

@@ -4,7 +4,7 @@ SHELL := /bin/bash
 UV  := uv
 RUN := $(UV) run --env-file .env
 
-.PHONY: help setup db-upgrade db-revision api web dev test test-unit lint format check clean
+.PHONY: help setup db-upgrade db-revision api web dev snapshots test test-unit lint format check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -34,6 +34,9 @@ api: ## Run the API at http://127.0.0.1:8000
 
 web: ## Run the web app at http://localhost:3000
 	npm run dev
+
+snapshots: ## Rebuild stored analysis for every company, without calling a provider
+	$(RUN) python -m ingestion.cli snapshots
 
 # ---------------------------------------------------------------------------
 # Quality

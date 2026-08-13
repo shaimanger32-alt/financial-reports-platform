@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
-import { CATEGORY_INTROS } from "@/lib/explanations";
-import { CATEGORY_LABELS } from "@/lib/messages";
+import { type Dictionary } from "@/lib/i18n";
 
 import styles from "./CategorySection.module.css";
 
@@ -22,22 +21,24 @@ export function CategorySection({
   available,
   total,
   children,
+  dictionary,
   defaultOpen = false,
 }: {
   category: string;
   available: number;
   total: number;
   children: ReactNode;
+  dictionary: Dictionary;
   defaultOpen?: boolean;
 }) {
-  const intro = CATEGORY_INTROS[category];
+  const intro = dictionary.categoryIntros[category];
 
   return (
     <details className={styles.section} open={defaultOpen}>
       <summary className={styles.header}>
         <span className={styles.marker} aria-hidden />
         <span className={styles.headings}>
-          <span className={styles.title}>{CATEGORY_LABELS[category] ?? category}</span>
+          <span className={styles.title}>{dictionary.categories[category] ?? category}</span>
           {intro && <span className={styles.intro}>{intro}</span>}
         </span>
         <span className={styles.count}>
@@ -45,7 +46,7 @@ export function CategorySection({
           {available < total && (
             <span className={styles.of}>
               {" "}
-              מתוך <span className="tnum">{total}</span>
+              {dictionary.ui.of} <span className="tnum">{total}</span>
             </span>
           )}
         </span>

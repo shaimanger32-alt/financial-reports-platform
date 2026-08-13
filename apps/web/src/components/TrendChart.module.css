@@ -1,0 +1,163 @@
+.figure {
+  margin: 0;
+}
+
+.caption {
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+
+/* The scale sits beside the plot rather than over it, so no label ever lands on
+   a bar and has to be read through it. */
+.frame {
+  display: flex;
+  align-items: stretch;
+  gap: 0.7rem;
+  direction: ltr;
+}
+
+.scale {
+  position: relative;
+  flex: none;
+  width: 3.4rem;
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+  text-align: end;
+}
+
+.scaleTop {
+  position: absolute;
+  top: -0.4em;
+  inset-inline-end: 0;
+}
+
+.scaleBottom {
+  position: absolute;
+  bottom: -0.4em;
+  inset-inline-end: 0;
+}
+
+.plot {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  height: 132px;
+  min-width: 0;
+}
+
+.column,
+.gap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-radius: 2px;
+}
+
+.column:hover {
+  background: var(--paper-sunken);
+}
+
+/* A quarter the issuer never reported is drawn as a hatch, not skipped. The
+   product's whole claim is that a gap is information. */
+.gap {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--rule) 0,
+    var(--rule) 1px,
+    transparent 1px,
+    transparent 5px
+  );
+  opacity: 0.7;
+}
+
+.bar,
+.barNegative {
+  position: absolute;
+  left: 0;
+  right: 0;
+  min-height: 1px;
+  border-radius: 1.5px;
+  transition: opacity 140ms ease;
+}
+
+.bar {
+  background: var(--ink);
+  opacity: 0.7;
+}
+
+.barNegative {
+  background: var(--warning);
+  opacity: 0.72;
+}
+
+/* The period being read. It is the one bar a reader is looking for, so it is
+   the one bar at full strength. */
+.column[data-current="true"] .bar,
+.column[data-current="true"] .barNegative {
+  opacity: 1;
+}
+
+.column:hover .bar,
+.column:hover .barNegative {
+  opacity: 0.95;
+}
+
+.marker {
+  position: absolute;
+  inset-inline: 0;
+  bottom: -0.45rem;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.zero {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--rule-strong);
+}
+
+/* The bars run oldest to newest left to right. Without matching the plot's
+   direction, the labels flip in a right-to-left flow and end up naming the
+   opposite ends of the chart. */
+.axis {
+  direction: ltr;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.9rem;
+  padding-inline-start: 4.1rem;
+  font-size: 0.74rem;
+  color: var(--ink-faint);
+}
+
+.latest {
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.tooLittle {
+  margin: 0;
+  height: 132px;
+  display: flex;
+  align-items: center;
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .plot {
+    height: 104px;
+  }
+
+  .scale {
+    width: 2.8rem;
+  }
+
+  .axis {
+    padding-inline-start: 3.5rem;
+  }
+}

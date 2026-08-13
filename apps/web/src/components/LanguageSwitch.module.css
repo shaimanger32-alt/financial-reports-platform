@@ -1,0 +1,52 @@
+/* Present but quiet. A reader who wants the other language finds it; a reader
+   who does not is not asked about it on every page. */
+
+.switch {
+  position: absolute;
+  top: 1.1rem;
+  inset-inline-end: 1.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  z-index: 10;
+}
+
+.option {
+  padding: 0.2rem 0.55rem;
+  font-family: var(--font-assistant), system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: var(--ink-faint);
+  text-decoration: none;
+  border-radius: 3px;
+  transition:
+    color 140ms ease,
+    background 140ms ease;
+}
+
+.option + .option {
+  border-inline-start: var(--hairline);
+}
+
+.option:hover {
+  color: var(--ink);
+  background: var(--paper-sunken);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.option[data-active="true"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .switch {
+    top: 0.7rem;
+    inset-inline-end: 1rem;
+  }
+}

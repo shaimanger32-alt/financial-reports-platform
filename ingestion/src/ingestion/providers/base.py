@@ -58,8 +58,13 @@ class ProviderConcept:
 
     @property
     def is_extension(self) -> bool:
-        """True when the concept is company-specific rather than standard IFRS."""
-        return self.namespace not in (None, "ifrs-full")
+        """True when the concept is company-specific rather than standard.
+
+        Standard means a published taxonomy: `ifrs-full` for Israeli filers,
+        `us-gaap` and `dei` for American ones. Anything else is an issuer
+        extension, which decision 0010 declines to build analysis on.
+        """
+        return self.namespace not in (None, "ifrs-full", "us-gaap", "dei")
 
 
 @dataclass(frozen=True, slots=True)

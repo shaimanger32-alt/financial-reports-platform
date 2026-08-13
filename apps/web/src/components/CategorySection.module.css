@@ -36,7 +36,7 @@
   flex: none;
   width: 7px;
   height: 7px;
-  border-left: 1.5px solid var(--ink-faint);
+  border-inline-start: 1.5px solid var(--ink-faint);
   border-bottom: 1.5px solid var(--ink-faint);
   transform: rotate(45deg);
   transition:

@@ -107,8 +107,6 @@
 .figureAbsent {
   font-family: var(--font-display);
   font-size: 1.5rem;
-  direction: ltr;
-  text-align: right;
   line-height: 1.15;
 }
 
@@ -124,6 +122,81 @@
   padding: 0;
   display: grid;
   gap: 0.75rem;
+}
+
+/* ---- patterns ----------------------------------------------------------
+   A pattern outranks a signal, so it is set larger and given room. It is not
+   given colour: section 44 rules out drama, and the same 3px severity rule the
+   signals use is enough to say how much attention it wants. */
+.pattern {
+  display: flex;
+  gap: 0.85rem;
+  padding: 1.15rem 1.25rem;
+  margin: 0 0 1rem;
+  background: var(--paper-raised);
+  border: var(--hairline);
+  border-radius: 2px;
+}
+
+.patternBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.patternTitle {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1.4375rem;
+  line-height: 1.25;
+}
+
+.patternText {
+  margin: 0 0 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+/* The pattern is a combination of signals and nothing more (section 16). The
+   members are shown underneath it so a reader can see exactly what it rests
+   on, rather than being asked to trust a headline. */
+.patternBasis {
+  margin: 1rem 0 0.6rem;
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+}
+
+.pattern .signals {
+  margin: 0;
+}
+
+.pattern[data-severity="positive"] .severityMark {
+  background: var(--positive);
+}
+.pattern[data-severity="watch"] .severityMark {
+  background: var(--watch);
+}
+.pattern[data-severity="warning"] .severityMark {
+  background: var(--warning);
+}
+.pattern[data-severity="critical"] .severityMark {
+  background: var(--critical);
+}
+.pattern[data-severity="info"] .severityMark {
+  background: var(--info);
+}
+
+.pattern[data-severity="positive"] .severityLabel {
+  color: var(--positive);
+}
+.pattern[data-severity="watch"] .severityLabel {
+  color: var(--watch);
+}
+.pattern[data-severity="warning"] .severityLabel {
+  color: var(--warning);
+}
+.pattern[data-severity="critical"] .severityLabel {
+  color: var(--critical);
 }
 
 .signal {
@@ -233,7 +306,6 @@
   margin-top: 0.5rem;
   font-family: var(--font-mono);
   font-size: 0.78rem;
-  direction: ltr;
-  text-align: left;
+  text-align: start;
   word-break: break-all;
 }

@@ -181,6 +181,16 @@ REPORTED_METRICS: Final[tuple[MetricSpec, ...]] = (
         coverage=97,
     ),
     _extended(
+        "effect_of_exchange_rate_on_cash",
+        "השפעת שער חליפין על מזומנים",
+        "Effect of exchange rates on cash",
+        MetricCategory.CASH_FLOW,
+        coverage=74,
+        note="The reconciling line between the three cash flow subtotals and the "
+        "change in the cash balance. Without it the cash bridge does not close "
+        "for any company holding cash abroad, which is most of them.",
+    ),
+    _extended(
         "property_plant_equipment",
         "רכוש קבוע",
         "Property, plant and equipment",

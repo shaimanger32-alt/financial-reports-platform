@@ -1,51 +1,70 @@
 /**
- * Turning figures into text.
+ * Turning figures into text, in the reader's language.
  *
  * Currency is never hard-coded to the shekel (spec section 45), and a margin
  * movement is always percentage points rather than percent (section 13.2) —
  * calling a move from 9.1% to 10.0% "+9.9%" is the classic way to overstate a
  * small change.
+ *
+ * Every function takes a locale rather than reading a module-level constant.
+ * That constant was `he-IL`, and it was silently rendering American companies'
+ * figures with Hebrew conventions.
  */
 
 import type { UnitType } from "./api";
+import type { Dictionary, Locale } from "./i18n";
+import { getDictionary, intlLocaleOf } from "./i18n";
 
-const LOCALE = "he-IL";
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  ILS: "₪",
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+};
 
-export function formatCurrency(value: number, currency = "ILS"): string {
+export function formatCurrency(value: number, locale: Locale, currency = "USD"): string {
   const millions = value / 1_000_000;
-  const formatted = new Intl.NumberFormat(LOCALE, {
+  const formatted = new Intl.NumberFormat(intlLocaleOf(locale), {
     maximumFractionDigits: Math.abs(millions) >= 100 ? 0 : 1,
   }).format(millions);
-  const symbol = currency === "ILS" ? "₪" : currency;
-  return `${formatted}M ${symbol}`;
+  const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
+  // The symbol leads in English and trails in Hebrew, which is how each
+  // language actually writes money.
+  return locale === "he" ? `${formatted}M ${symbol}` : `${symbol}${formatted}M`;
 }
 
-export function formatRatio(value: number): string {
-  return new Intl.NumberFormat(LOCALE, {
+export function formatRatio(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(intlLocaleOf(locale), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
 }
 
-export function formatPercent(value: number, digits = 1): string {
-  return new Intl.NumberFormat(LOCALE, {
+export function formatPercent(value: number, locale: Locale, digits = 1): string {
+  return new Intl.NumberFormat(intlLocaleOf(locale), {
     style: "percent",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(value);
 }
 
-export function formatDays(value: number): string {
-  return `${new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 }).format(value)} ימים`;
+export function formatDays(value: number, locale: Locale): string {
+  const formatted = new Intl.NumberFormat(intlLocaleOf(locale), {
+    maximumFractionDigits: 1,
+  }).format(value);
+  return getDictionary(locale).units.days(formatted);
 }
 
-export function formatSigned(value: number, digits = 1): string {
+export function formatSigned(value: number, locale: Locale, digits = 1): string {
   // Intl renders a value that rounds to nothing as "-0", which reads as a real
   // negative. Collapse it first.
   const rounded = Number(value.toFixed(digits));
   const safe = Object.is(rounded, -0) ? 0 : rounded;
   const sign = safe > 0 ? "+" : "";
-  return sign + new Intl.NumberFormat(LOCALE, { maximumFractionDigits: digits }).format(safe);
+  return (
+    sign +
+    new Intl.NumberFormat(intlLocaleOf(locale), { maximumFractionDigits: digits }).format(safe)
+  );
 }
 
 /** Which metrics are naturally read as a percentage rather than a bare ratio. */
@@ -64,6 +83,7 @@ const PERCENT_METRICS = new Set([
   "operating_cash_flow_growth_yoy",
   "dilution_yoy",
   "accruals_proxy",
+  "short_term_debt_share",
 ]);
 
 /** Metrics already expressed in percentage points by their formula. */
@@ -75,25 +95,33 @@ const POINT_METRICS = new Set([
   "inventory_growth_gap",
 ]);
 
+function points(value: number, locale: Locale, dictionary: Dictionary, digits = 2): string {
+  return dictionary.units.points(formatSigned(value, locale, digits));
+}
+
 export function formatMetric(
   code: string,
   value: number | null,
   unitType: UnitType,
-  currency = "ILS",
+  locale: Locale,
+  currency = "USD",
 ): string {
   if (value === null) return "—";
-  if (POINT_METRICS.has(code)) return `${formatSigned(value, 2)} נק׳`;
-  if (PERCENT_METRICS.has(code)) return formatPercent(value);
+  const dictionary = getDictionary(locale);
+  if (POINT_METRICS.has(code)) return points(value, locale, dictionary);
+  if (PERCENT_METRICS.has(code)) return formatPercent(value, locale);
 
   switch (unitType) {
     case "currency":
-      return formatCurrency(value, currency);
+      return formatCurrency(value, locale, currency);
     case "days":
-      return formatDays(value);
+      return formatDays(value, locale);
     case "count":
-      return new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 }).format(value);
+      return new Intl.NumberFormat(intlLocaleOf(locale), { maximumFractionDigits: 1 }).format(
+        value,
+      );
     default:
-      return formatRatio(value);
+      return formatRatio(value, locale);
   }
 }
 
@@ -104,27 +132,44 @@ export function formatMetric(
  * the raw 0.011 is technically the number and tells the reader nothing, and
  * showing it as a percentage would claim a 12% move (spec section 13.2).
  */
-export function formatChange(code: string, value: number | null, unitType: UnitType): string {
+export function formatChange(
+  code: string,
+  value: number | null,
+  unitType: UnitType,
+  locale: Locale,
+): string {
   if (value === null) return "—";
-  if (POINT_METRICS.has(code)) return `${formatSigned(value, 2)} נק׳`;
-  if (PERCENT_METRICS.has(code)) return `${formatSigned(value * 100, 2)} נק׳`;
+  const dictionary = getDictionary(locale);
+  if (POINT_METRICS.has(code)) return points(value, locale, dictionary);
+  if (PERCENT_METRICS.has(code)) return points(value * 100, locale, dictionary);
 
   switch (unitType) {
     case "days":
-      return `${formatSigned(value, 1)} ימים`;
+      return dictionary.units.days(formatSigned(value, locale, 1));
     case "currency":
-      return `${formatSigned(value / 1_000_000, 1)}M`;
+      return `${formatSigned(value / 1_000_000, locale, 1)}M`;
     default:
-      return formatSigned(value, 2);
+      return formatSigned(value, locale, 2);
   }
 }
 
-export function formatPeriod(code: string): string {
+/**
+ * A period code as a reader sees it.
+ *
+ * Fiscal, not calendar. Apple's first quarter ends in December, and calling it
+ * anything else would contradict the company's own report.
+ */
+export function formatPeriod(code: string, locale: Locale): string {
+  const dictionary = getDictionary(locale);
+
   const quarter = code.match(/^(\d{4})-Q([1-4])$/);
-  if (quarter) return `רבעון ${quarter[2]} ${quarter[1]}`;
+  if (quarter) return dictionary.ui.quarter(Number(quarter[2]), Number(quarter[1]));
+
   const annual = code.match(/^(\d{4})-FY$/);
-  if (annual) return `שנת ${annual[1]}`;
+  if (annual) return dictionary.ui.fiscalYear(Number(annual[1]));
+
   const ytd = code.match(/^(\d{4})-YTD-Q([1-4])$/);
-  if (ytd) return `מתחילת ${ytd[1]} עד רבעון ${ytd[2]}`;
+  if (ytd) return dictionary.ui.yearToDate(Number(ytd[2]), Number(ytd[1]));
+
   return code;
 }

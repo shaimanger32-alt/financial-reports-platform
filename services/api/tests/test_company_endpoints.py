@@ -101,8 +101,29 @@ def test_the_latest_report_carries_every_version(loaded_client: TestClient) -> N
 
     assert response.status_code == 200
     versions = response.json()["versions"]
-    assert set(versions) == {"analysis", "metrics", "rules", "thresholds", "mappings"}
+    assert set(versions) == {"analysis", "metrics", "rules", "thresholds", "mappings", "patterns"}
     assert all(versions.values())
+
+
+def test_a_report_carries_its_patterns(loaded_client: TestClient) -> None:
+    """A pattern names the signals it is made of, and claims nothing beyond
+    them (spec section 16)."""
+    response = loaded_client.get("/v1/companies/520039413/reports/latest")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "patterns" in body
+
+    raised = {signal["code"] for signal in body["signals"]}
+    for pattern in body["patterns"]:
+        members = [*pattern["signal_codes"], *pattern["optional_signal_codes"]]
+        assert members, "a pattern with no signals behind it is not a pattern"
+        assert set(members) <= raised, "a pattern may only cite signals this period raised"
+        # Section 20 reserves high confidence for an explanation from the
+        # filing, which no engine before phase 6 can supply.
+        assert pattern["confidence"] != "high"
+        assert pattern["explanation_status"] == "not_searched"
+        assert pattern["message_key"].startswith("pattern.")
 
 
 def test_unavailable_metrics_are_kept_with_their_missing_inputs(

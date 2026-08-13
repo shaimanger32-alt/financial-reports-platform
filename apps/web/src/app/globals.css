@@ -134,3 +134,16 @@ a:hover {
   unicode-bidi: isolate;
   display: inline-block;
 }
+
+/*
+ * A proper name, in whichever language it belongs to.
+ *
+ * A company's name is never translated -- it is what the filing says -- so it
+ * can be Latin on a Hebrew page or Hebrew on an English one. `plaintext` reads
+ * the direction from the name's own first strong character rather than from the
+ * page, which is what stops "ADOBE INC." rendering as ".ADOBE INC" when the
+ * paragraph around it runs the other way.
+ */
+.name {
+  unicode-bidi: plaintext;
+}

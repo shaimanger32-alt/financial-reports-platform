@@ -1,4 +1,4 @@
-import { explanationFor } from "@/lib/explanations";
+import { type Dictionary, explanationFor } from "@/lib/i18n";
 
 import styles from "./MetricRow.module.css";
 
@@ -16,6 +16,7 @@ export function MetricRow({
   label,
   value,
   available,
+  dictionary,
   note,
   source,
   isCore,
@@ -24,11 +25,12 @@ export function MetricRow({
   label: string;
   value: string;
   available: boolean;
+  dictionary: Dictionary;
   note?: string;
   source?: string | null;
   isCore?: boolean;
 }) {
-  const explanation = explanationFor(code);
+  const explanation = explanationFor(dictionary, code);
 
   return (
     <div className={styles.row}>
@@ -36,7 +38,7 @@ export function MetricRow({
         <summary className={styles.summary}>
           <span className={styles.label}>
             {label}
-            {isCore && <span className={styles.coreMark} title="נתון שכל חברה מדווחת" />}
+            {isCore && <span className={styles.coreMark} title={dictionary.ui.coreMark} />}
             {explanation && (
               <span className={styles.info} aria-hidden>
                 i
@@ -56,13 +58,13 @@ export function MetricRow({
             <p className={styles.read}>{explanation.read}</p>
             {explanation.watch && (
               <p className={styles.watch}>
-                <span className={styles.watchLabel}>שווה מבט</span>
+                <span className={styles.watchLabel}>{dictionary.ui.worthWatching}</span>
                 {explanation.watch}
               </p>
             )}
             {source && (
               <p className={styles.source}>
-                מקור בדוח: <span className="ltr">{source}</span>
+                {dictionary.ui.sourceInFiling}: <span className="ltr">{source}</span>
               </p>
             )}
           </div>

@@ -22,6 +22,16 @@ from ingestion.providers.magna_xbrl.concept_map import (
     MAPPING_VERSION,
     PROVIDER_CODE_DEFAULT,
 )
+from ingestion.providers.sec_edgar.concept_map import CONCEPT_CHAINS as SEC_EDGAR_CHAINS
+
+# The chains a provider maps its taxonomy through. Both are seeded on every run:
+# a mapping table missing the American chains would leave every us-gaap fact
+# unmapped, and the failure would look like missing data rather than missing
+# configuration.
+CHAINS_BY_PROVIDER: dict[str, dict[str, tuple[str, ...]]] = {
+    PROVIDER_CODE_DEFAULT: CONCEPT_CHAINS,
+    "sec_edgar": SEC_EDGAR_CHAINS,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +96,7 @@ def seed_concept_mappings(session: Session, provider: str = PROVIDER_CODE_DEFAUL
     Priority is the position in the chain, so the most precise concept is tried
     first (decision 0009).
     """
+    chains = CHAINS_BY_PROVIDER.get(provider, CONCEPT_CHAINS)
     rows = [
         {
             "provider": provider,
@@ -96,7 +107,7 @@ def seed_concept_mappings(session: Session, provider: str = PROVIDER_CODE_DEFAUL
             "company_id": None,
             "mapping_version": MAPPING_VERSION,
         }
-        for metric_code, chain in CONCEPT_CHAINS.items()
+        for metric_code, chain in chains.items()
         for position, concept in enumerate(chain)
     ]
 
@@ -113,15 +124,22 @@ def seed_concept_mappings(session: Session, provider: str = PROVIDER_CODE_DEFAUL
     return len(rows)
 
 
-def seed_reference_data(session: Session, provider: str = PROVIDER_CODE_DEFAULT) -> SeedReport:
-    """Load metric definitions and concept chains, and check they agree."""
+def seed_reference_data(session: Session, provider: str | None = None) -> SeedReport:
+    """Load metric definitions and every provider's concept chains.
+
+    Both providers are seeded regardless of which one is being ingested. The
+    tables are small, seeding is idempotent, and a store holding only half the
+    mappings fails in the most confusing way available: as missing data.
+    """
     metric_count = seed_metric_definitions(session)
     session.flush()
-    mapping_count = seed_concept_mappings(session, provider)
+
+    providers = [provider] if provider else list(CHAINS_BY_PROVIDER)
+    mapping_count = sum(seed_concept_mappings(session, code) for code in providers)
     session.flush()
 
     known_codes = set(session.scalars(select(MetricDefinition.code)))
-    chain_codes = set(CONCEPT_CHAINS)
+    chain_codes = {code for name in providers for code in CHAINS_BY_PROVIDER.get(name, {})}
 
     report = SeedReport(
         metrics=metric_count,

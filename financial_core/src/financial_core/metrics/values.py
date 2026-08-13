@@ -27,6 +27,10 @@ class FactPoint:
     priority: int = 0
     """Position of `raw_concept` in its metric's fallback chain. Lower is more
     precise (decision 0009)."""
+    recency: str = ""
+    """When the filing this came from was published, or an inferred ordering key.
+    Higher sorts later. Decision 0009 keeps every restatement, and this is what
+    decides which one a calculation uses."""
 
     @property
     def is_analysable(self) -> bool:
@@ -36,16 +40,29 @@ class FactPoint:
 def _outranks(candidate: FactPoint, held: FactPoint) -> bool:
     """Whether `candidate` should replace `held` for the same metric and period.
 
-    Two rules, in order:
+    Three rules, in order:
 
     1. A figure the issuer reported beats one we derived. Ours never displaces
        theirs (decision 0009).
     2. Otherwise the more precise concept wins, which is the one earlier in the
        fallback chain.
+    3. Between two equally precise reported figures, **the later filing wins.**
+
+    The third rule is what makes a restatement mean anything. Apple filed its
+    fiscal 2009 revenue as $36.5bn, then restated it to $42.9bn in every
+    subsequent filing after adopting the new revenue recognition standard.
+    Without recency the store kept whichever arrived first and reported a
+    superseded figure as current, which made fiscal 2010 growth read as +78.5%
+    against the +52% the restated comparative gives.
+
+    Both values are still kept (decision 0009). This decides only which one a
+    calculation reads.
     """
     if candidate.origin is not held.origin:
         return candidate.origin is Origin.REPORTED
-    return candidate.priority < held.priority
+    if candidate.priority != held.priority:
+        return candidate.priority < held.priority
+    return candidate.recency > held.recency
 
 
 class FactSet:

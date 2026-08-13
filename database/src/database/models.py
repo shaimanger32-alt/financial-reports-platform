@@ -98,6 +98,20 @@ class Company(Base):
     reporting_currency: Mapped[str] = mapped_column(String(3), default="ILS")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    market: Mapped[str] = mapped_column(String(16), default="il_ifrs")
+    """Which market's tiering decides whether a metric is CORE (decision 0011).
+    The current ratio is CORE in Israel and EXTENDED in the United States."""
+
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    """Whether the API serves this company. Ingesting and publishing are
+    separate on purpose: a company can be loaded, checked and left invisible.
+    Defaults to false so nothing reaches a reader by accident."""
+
+    fiscal_calendar_json: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    """The fiscal years this company declared, learned from its own filings.
+    Null for a calendar-year issuer, which needs none. A 52/53-week American
+    filer cannot have its periods classified without it."""
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -390,6 +404,10 @@ class AnalysisSnapshot(Base):
     rules_version: Mapped[str] = mapped_column(String(16))
     thresholds_version: Mapped[str] = mapped_column(String(16))
     mappings_version: Mapped[str] = mapped_column(String(16))
+    # Nullable because snapshots written before the pattern engine existed have
+    # no pattern rules behind them. Null means "this analysis predates
+    # patterns", which is not the same as "no pattern fired".
+    patterns_version: Mapped[str | None] = mapped_column(String(16))
     evidence_version: Mapped[str | None] = mapped_column(String(16))
 
     payload_json: Mapped[dict[str, object]] = mapped_column(JSONB)

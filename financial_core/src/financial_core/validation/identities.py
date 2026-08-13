@@ -15,7 +15,7 @@ is not the same size as one on a figure in the thousands.
 """
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Final
 
@@ -24,6 +24,11 @@ Figures = Mapping[str, float | None]
 # Filings are tagged to the thousand, so a discrepancy below this is rounding.
 RELATIVE_TOLERANCE: Final[float] = 0.005
 ABSOLUTE_TOLERANCE: Final[float] = 1_000.0
+
+# The reconciling line between the cash flow subtotals and the change in the
+# cash balance. Reported by 74% of American issuers; absent at a purely domestic
+# one, which has no exchange rate effect to report.
+EXCHANGE_RATE_EFFECT: Final[str] = "effect_of_exchange_rate_on_cash"
 
 
 class IdentityOutcome(StrEnum):
@@ -44,6 +49,9 @@ class IdentityCheck:
     expected: float | None = None
     actual: float | None = None
     missing: tuple[str, ...] = ()
+    unreported_terms: tuple[str, ...] = ()
+    """Reconciling terms the company did not file. Recorded rather than assumed
+    to be zero, so a gap can be reported with the reason it may exist."""
 
     @property
     def difference(self) -> float | None:
@@ -140,21 +148,41 @@ def check_cash_bridge(figures: Figures) -> IdentityCheck:
     identity is checkable for the whole market. It catches a sign convention read
     the wrong way round, which is otherwise invisible: a financing outflow stored
     as a positive number still looks like a plausible figure on its own.
+
+    **There is a fourth term.** The effect of exchange rates on cash held abroad
+    reconciles the three subtotals to the change in the balance, and any company
+    with foreign operations reports one. Measured across all 54 companies in the
+    store, leaving it out broke this identity for 43 of them -- a gap in our
+    mapping rather than in their accounts. With it, 17 remain.
+
+    It is added when the company filed it. When it did not, the check still runs
+    and records the absence: substituting a zero would violate the first
+    non-negotiable, and skipping would lose the check for a quarter of the
+    market. A breach then carries the reason it may exist.
     """
-    return _evaluate(
+    required = (
+        "operating_cash_flow",
+        "investing_cash_flow",
+        "financing_cash_flow",
+        "net_change_in_cash",
+    )
+    exchange_rate_effect = figures.get(EXCHANGE_RATE_EFFECT)
+
+    check = _evaluate(
         name="cash_flows_sum_to_the_change_in_cash",
         figures=figures,
-        required=(
-            "operating_cash_flow",
-            "investing_cash_flow",
-            "financing_cash_flow",
-            "net_change_in_cash",
-        ),
+        required=required,
         expected_of=lambda v: (
-            v["operating_cash_flow"] + v["investing_cash_flow"] + v["financing_cash_flow"]
+            v["operating_cash_flow"]
+            + v["investing_cash_flow"]
+            + v["financing_cash_flow"]
+            + float(exchange_rate_effect or 0.0)
         ),
         actual_key="net_change_in_cash",
     )
+    if exchange_rate_effect is None and check.outcome is not IdentityOutcome.NOT_CHECKABLE:
+        return replace(check, unreported_terms=(EXCHANGE_RATE_EFFECT,))
+    return check
 
 
 def check_balance_sheet_total(figures: Figures) -> IdentityCheck:

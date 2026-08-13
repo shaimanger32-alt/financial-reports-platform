@@ -59,6 +59,9 @@ CONCEPT_CHAINS: Final[dict[str, tuple[str, ...]]] = {
     "investing_cash_flow": ("ifrs-full:CashFlowsFromUsedInInvestingActivities",),  # 100%
     "financing_cash_flow": ("ifrs-full:CashFlowsFromUsedInFinancingActivities",),  # 100%
     "net_change_in_cash": ("ifrs-full:IncreaseDecreaseInCashAndCashEquivalents",),  # 97%
+    "effect_of_exchange_rate_on_cash": (
+        "ifrs-full:EffectOfExchangeRateChangesOnCashAndCashEquivalents",
+    ),
     "capital_expenditure": (
         "ifrs-full:PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",
         # Broader: bundles intangibles and investment property with PP&E. Usable,

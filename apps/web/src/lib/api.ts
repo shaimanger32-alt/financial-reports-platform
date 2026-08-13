@@ -74,6 +74,34 @@ export interface SignalValue {
   periods_persisted: number;
 }
 
+export type ExplanationStatus = "not_searched" | "no_evidence" | "supported" | "contradicted";
+
+/**
+ * Several signals a rule recognises as one thing (spec section 16).
+ *
+ * It holds the codes of its members rather than copies of them: a pattern has
+ * no content of its own beyond the combination, and the codes are what let the
+ * page fold those signals underneath it instead of listing them twice.
+ */
+export interface PatternValue {
+  code: string;
+  severity: Severity;
+  confidence: Confidence;
+  message_key: string;
+  rule_version: string;
+  signal_codes: string[];
+  optional_signal_codes: string[];
+  explanation_status: ExplanationStatus;
+}
+
+/** One Report Pulse dimension (spec section 6.1). A state, never a score. */
+export interface PulseBand {
+  code: string;
+  state: "strong" | "stable" | "watch" | "weak" | "no_data";
+  message_key: string;
+  signal_codes: string[];
+}
+
 export interface ReportAnalysis {
   company_id: string;
   period_code: string;
@@ -85,6 +113,8 @@ export interface ReportAnalysis {
   line_items: LineItem[];
   metrics: MetricValue[];
   signals: SignalValue[];
+  patterns: PatternValue[];
+  pulse: PulseBand[];
   generated_at: string;
 }
 
@@ -140,5 +170,14 @@ export const fetchLatestReport = (id: string) =>
 export const fetchReport = (id: string, period: string) =>
   get<ReportAnalysis>(`/v1/companies/${id}/reports/${period}`);
 
-export const fetchSeries = (id: string, metric: string) =>
-  get<MetricSeriesResponse>(`/v1/companies/${id}/series/${metric}`);
+/**
+ * One metric's history, in one period kind.
+ *
+ * Quarters and years are never requested together: a twelve-month figure beside
+ * a three-month one on the same axis is the mixing spec section 14.6 forbids.
+ */
+export const fetchSeries = (
+  id: string,
+  metric: string,
+  periods: "quarterly" | "annual" = "quarterly",
+) => get<MetricSeriesResponse>(`/v1/companies/${id}/series/${metric}?periods=${periods}`);

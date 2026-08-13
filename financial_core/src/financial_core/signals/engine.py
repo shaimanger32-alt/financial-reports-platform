@@ -41,10 +41,14 @@ class MetricObservation:
 
 @dataclass(frozen=True, slots=True)
 class MetricSeries:
-    """A metric's history for one company, oldest first, one entry per quarter."""
+    """A metric's history for one company, oldest first, evenly spaced."""
 
     metric_code: str
     observations: tuple[MetricObservation, ...]
+    periods_per_year: int = QUARTERS_IN_YEAR
+    """How many observations make a year. Four for a quarterly series, one for
+    an annual one. It decides how far back "the same period last year" is, and
+    getting it wrong would compare a year against a quarter."""
 
     @property
     def latest(self) -> MetricObservation | None:
@@ -54,11 +58,12 @@ class MetricSeries:
         return [observation.value for observation in self.observations]
 
     def year_on_year_changes(self) -> list[MetricObservation]:
-        """Each period's change against the same quarter a year earlier."""
+        """Each period's change against the same period a year earlier."""
+        offset = self.periods_per_year
         changes: list[MetricObservation] = []
-        for index in range(QUARTERS_IN_YEAR, len(self.observations)):
+        for index in range(offset, len(self.observations)):
             current = self.observations[index]
-            prior = self.observations[index - QUARTERS_IN_YEAR]
+            prior = self.observations[index - offset]
             if current.value is None or prior.value is None:
                 changes.append(MetricObservation(current.period, None))
             else:

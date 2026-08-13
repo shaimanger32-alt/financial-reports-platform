@@ -17,8 +17,6 @@
   font-size: clamp(2.25rem, 6vw, 3.5rem);
   font-weight: 700;
   letter-spacing: -0.02em;
-  direction: ltr;
-  text-align: right;
   margin-bottom: 0.5rem;
 }
 
@@ -94,7 +92,6 @@
   font-family: var(--font-mono);
   font-size: 0.78rem;
   color: var(--ink-faint);
-  direction: ltr;
-  text-align: left;
+  text-align: start;
   word-break: break-all;
 }

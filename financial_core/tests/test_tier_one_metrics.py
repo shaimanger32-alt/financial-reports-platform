@@ -131,22 +131,30 @@ def test_equity_ratio() -> None:
     assert equity_ratio(facts, QUARTER).value == pytest.approx(0.3908, abs=1e-4)
 
 
-def test_leverage_uses_both_halves_of_the_balance_sheet() -> None:
-    """Total liabilities is tagged by a third of issuers; the halves by all."""
+def test_leverage_comes_from_the_accounting_identity() -> None:
+    """Total liabilities is a thinly tagged subtotal -- a third of Israeli
+    issuers and 66% of American ones -- so it is reached as assets less equity.
+    Both of those are tagged by every issuer in both markets."""
     facts = facts_from(
-        current_liabilities=2_000_000_000,
-        non_current_liabilities=500_000_000,
+        total_assets=4_100_000_000,
         total_equity=1_600_000_000,
     )
 
     assert liabilities_to_equity(facts, QUARTER).value == pytest.approx(1.5625)
 
 
+def test_leverage_resolves_without_a_current_liability_split() -> None:
+    """US GAAP does not require one. A bank orders its balance sheet by
+    liquidity and tags neither half, and this metric must still resolve."""
+    facts = facts_from(total_assets=4_100_000_000, total_equity=1_600_000_000)
+
+    assert liabilities_to_equity(facts, QUARTER).value is not None
+
+
 def test_leverage_is_null_on_negative_equity() -> None:
     """A negative denominator makes the ratio meaningless, not merely large."""
     facts = facts_from(
-        current_liabilities=2_000_000_000,
-        non_current_liabilities=500_000_000,
+        total_assets=2_400_000_000,
         total_equity=-100_000_000,
     )
 
