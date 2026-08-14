@@ -29,6 +29,7 @@ from financial_core.analysis import (
 from financial_core.metrics import DEFAULT_TIERING, TIERINGS_BY_CODE
 from financial_core.periods import DurationKind, FiscalPeriod
 from financial_core.signals import ALL_RULES, MetricSeries
+from financial_core.watch import WatchItem
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class SnapshotReport:
     periods: tuple[str, ...]
     signals: int
     patterns: int = 0
+    watch_items: int = 0
     annual: int = 0
     restatements: int = 0
 
@@ -95,6 +97,13 @@ def generate_snapshots(
     total_patterns = 0
     total_annual = 0
     total_restatements = 0
+    total_watch = 0
+
+    # Report memory is derived, not accumulated: the sequence is replayed from
+    # the stored periods on every run, so a formula or rule change reruns the
+    # memory with it. Quarterly and annual items are carried on separate tracks —
+    # a quarter cannot answer a question an annual report asked (section 21.4).
+    carried: dict[bool, tuple[WatchItem, ...]] = {True: (), False: ()}
 
     for period in sorted(quarter_periods + annual_periods):
         period_row = rows.get(period.code)
@@ -127,6 +136,7 @@ def generate_snapshots(
                 )
                 for item in restated.get(period.code, ())
             ],
+            carried_watch_items=carried[is_annual],
         )
         _store(session, company, period_row, snapshot)
         generated.append(period.code)
@@ -135,6 +145,11 @@ def generate_snapshots(
         total_restatements += len(snapshot.restatements)
         total_signals += len(snapshot.signals)
         total_patterns += len(snapshot.patterns)
+        total_watch += len(snapshot.watch_items)
+
+        # A resolved item has been answered and stops travelling. Everything
+        # else, `not_measurable` included, is still open business.
+        carried[is_annual] = tuple(item for item in snapshot.watch_items if item.is_open_business)
 
     session.flush()
     return SnapshotReport(
@@ -142,6 +157,7 @@ def generate_snapshots(
         periods=tuple(generated),
         signals=total_signals,
         patterns=total_patterns,
+        watch_items=total_watch,
         annual=total_annual,
         restatements=total_restatements,
     )

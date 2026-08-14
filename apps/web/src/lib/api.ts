@@ -102,6 +102,37 @@ export interface PulseBand {
   signal_codes: string[];
 }
 
+export type WatchStatus = "open" | "improved" | "worsened" | "resolved" | "not_measurable";
+
+/** One metric's reading at one point in a watch item's life. */
+export interface WatchReading {
+  metric_code: string;
+  period_code: string;
+  value: number | null;
+  year_on_year_change: number | null;
+  deviation: number | null;
+}
+
+/**
+ * Something an earlier report asked this one to check (spec section 28).
+ *
+ * Both readings travel together, because "collection lengthened 14 days, and
+ * now 22" is the whole content of the item. `not_measurable` is a pause and
+ * never a quiet resolution.
+ */
+export interface WatchItemValue {
+  source_code: string;
+  metric_code: string;
+  status: WatchStatus;
+  status_reason: string;
+  opened_in_period: string;
+  reviewed_in_period: string | null;
+  resolved_in_period: string | null;
+  opened_from: WatchReading;
+  current: WatchReading | null;
+  history: { period_code: string; status: WatchStatus }[];
+}
+
 export interface ReportAnalysis {
   company_id: string;
   period_code: string;
@@ -115,6 +146,7 @@ export interface ReportAnalysis {
   signals: SignalValue[];
   patterns: PatternValue[];
   pulse: PulseBand[];
+  watch_items?: WatchItemValue[];
   generated_at: string;
 }
 

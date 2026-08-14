@@ -133,6 +133,22 @@ export const he: Dictionary = {
     },
   },
 
+  watch: {
+    title: "מה לבדוק בדוח הבא",
+    intro:
+      "דברים שעלו בדוח קודם, ומה אותה מדידה אומרת עכשיו. זו השוואה בין שתי נקודות בזמן, לא תחזית.",
+    openedIn: "נפתח ב",
+    then: "אז",
+    now: "עכשיו",
+    statuses: {
+      "watch.opened": "נפתח למעקב",
+      "watch.improved": "התנועה הצטמצמה",
+      "watch.worsened": "התנועה התרחבה",
+      "watch.resolved": "חזר לטווח הרגיל של החברה",
+      "watch.not_measurable": "לא ניתן למדוד בתקופה הזו",
+    },
+  },
+
   warnings: {
     missing_input: "החברה לא דיווחה את אחד הנתונים",
     non_positive_base: "בסיס ההשוואה אינו חיובי, ולכן אחוז היה מטעה",

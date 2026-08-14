@@ -65,6 +65,10 @@ class AnalysisVersions(BaseModel):
         description="Null on an analysis generated before the pattern engine existed.",
     )
     pulse: str | None = Field(default=None)
+    watch: str | None = Field(
+        default=None,
+        description="The lifecycle rules that decided each watch item's status.",
+    )
     tiering: str | None = Field(
         default=None,
         description=(
@@ -243,6 +247,47 @@ class RestatementValue(BaseModel):
     relative_difference: float | None = None
 
 
+class WatchReading(BaseModel):
+    """One metric's reading at one point in a watch item's life."""
+
+    metric_code: str
+    period_code: str
+    value: float | None = None
+    year_on_year_change: float | None = None
+    deviation: float | None = Field(
+        default=None,
+        description="Robust units from the company's own median, null where the "
+        "history was too short to judge.",
+    )
+
+
+class WatchStatusEntry(BaseModel):
+    """One period's verdict on a watch item."""
+
+    period_code: str
+    status: str
+
+
+class WatchItemValue(BaseModel):
+    """Something an earlier report asked this one to check (spec section 28).
+
+    Both readings travel together, because "collection lengthened 14 days, and
+    now 22" is the whole content of the item. `not_measurable` is never a quiet
+    resolution: a period that could not answer the question leaves it open.
+    """
+
+    source_code: str = Field(description="The pattern that raised it.")
+    metric_code: str
+    status: Literal["open", "improved", "worsened", "resolved", "not_measurable"]
+    status_reason: str
+    opened_in_period: str
+    reviewed_in_period: str | None = None
+    resolved_in_period: str | None = None
+    opened_from: WatchReading
+    current: WatchReading | None = None
+    history: list[WatchStatusEntry] = Field(default_factory=list)
+
+
 class ReportAnalysis(BaseModel):
     """Everything computed for one company and period."""
 
@@ -260,6 +305,7 @@ class ReportAnalysis(BaseModel):
     identities: list[IdentityCheckValue] = Field(default_factory=list)
     restatements: list[RestatementValue] = Field(default_factory=list)
     pulse: list[PulseBand] = Field(default_factory=list)
+    watch_items: list[WatchItemValue] = Field(default_factory=list)
     generated_at: str
 
 

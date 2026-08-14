@@ -82,10 +82,42 @@ EDGAR needs no API key and no registration. It requires a `User-Agent` naming
 the caller with a contact address (`SEC_EDGAR_USER_AGENT`) and fewer than ten
 requests a second. That is the whole access requirement.
 
+## Decisions Shay made on 2026-08-14
+
+These are settled. Do not reopen them.
+
+- **P2 requires net profit to have risen.** The literal reading of section 16.
+  Where profit and cash flow both fell the event is deterioration, not an
+  earnings-quality gap, and the sentence would be false. No tolerance band is
+  applied to preserve a historical case: 19 matches became 13, and Hilan
+  2025-Q4 is now a regression case asserting P2 stays silent.
+- **Signals sharing their inputs are one observation.** Cash conversion is OCF
+  over profit; the accruals proxy is profit less OCF over assets. They count
+  once toward confidence, and the payload names the group.
+- **Banks and insurers are out of the MVP**, as section 18 already said. The
+  four banks stay ingested, computed and unpublished until a Financial
+  Institutions Pack exists. Never apply the current ratio, working capital,
+  CCC, inventory patterns or ordinary revenue/gross-margin readings to them.
+  Coverage today: Goldman Sachs 16/35, JPMorgan 14/35, Bank of America 14/35,
+  Morgan Stanley 14/35.
+- **Build order: watch items → P6 → P5 → P3.** P3 waits because it is
+  `EXTENDED` and needs the most care.
+- **P5 thresholds (MVP):** revenue growth > 0, operating margin improvement
+  ≥ 1.0 percentage point, OCF growth > 0, CCC deterioration ≤ 5 days. A
+  missing CCC does not become "stable" — P5 simply does not fire.
+- **P3 thresholds (MVP):** inventory-to-revenue growth gap ≥ 10 percentage
+  points, DIO increase ≥ 5 days, and revenue growth ≤ 5% or decelerating by
+  ≥ 5 percentage points.
+
+These are **MVP thresholds**, revisited once the sample widens — but never
+changed merely to raise or lower the number of matches.
+
 ## Where the project stands
 
-Phases 0 to 4 are complete. **Phase 5 is nearly done** — only watch items
-(section 28) remain of its deliverables. Phase 6 has not started.
+Phases 0 to 3 are complete. **Phase 4 was recorded as complete and was not**:
+its deliverables list `P1–P6` and a basic `WatchItem`, and only P1 and P2 exist.
+**Phase 5 is nearly done.** Phase 6 has not started. Phase 9, the American
+expansion, was done early and out of order and is now the primary market.
 
 Working end to end, from the live SEC EDGAR API to stored analysis:
 

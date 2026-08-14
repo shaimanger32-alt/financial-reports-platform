@@ -141,6 +141,22 @@ export const en: Dictionary = {
     },
   },
 
+  watch: {
+    title: "What to check in the next report",
+    intro:
+      "Things an earlier report raised, and what the same measurement says now. This compares two points in time; it does not forecast.",
+    openedIn: "Raised in",
+    then: "Then",
+    now: "Now",
+    statuses: {
+      "watch.opened": "Raised for watching",
+      "watch.improved": "The move has narrowed",
+      "watch.worsened": "The move has widened",
+      "watch.resolved": "Back within the company's usual range",
+      "watch.not_measurable": "Could not be measured this period",
+    },
+  },
+
   warnings: {
     missing_input: "The company did not report one of the figures",
     non_positive_base: "The comparison base is not positive, so a percentage would mislead",

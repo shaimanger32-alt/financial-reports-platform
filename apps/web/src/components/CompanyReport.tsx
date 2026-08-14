@@ -5,6 +5,7 @@ import { CategorySection } from "@/components/CategorySection";
 import { MetricRow } from "@/components/MetricRow";
 import { ReportPulse } from "@/components/ReportPulse";
 import { TrendChart } from "@/components/TrendChart";
+import { WatchList } from "@/components/WatchList";
 import {
   ApiUnavailableError,
   NotFoundError,
@@ -144,6 +145,16 @@ export async function CompanyReport({
         patterns={report.patterns}
         signals={report.signals}
         metrics={metrics}
+        dictionary={t}
+        locale={locale}
+      />
+
+      {/* Section 28. Placed after this period's findings and before its
+          figures: it is the only part of the page about a different report, and
+          reading it first would answer a question nobody has asked yet. */}
+      <WatchList
+        items={report.watch_items ?? []}
+        metrics={report.metrics}
         dictionary={t}
         locale={locale}
       />

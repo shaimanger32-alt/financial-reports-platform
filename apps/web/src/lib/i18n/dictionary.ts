@@ -101,6 +101,19 @@ export interface Dictionary {
   };
   signals: Record<string, string>;
   patterns: Record<string, PatternMessage>;
+  /**
+   * Report memory (spec section 28). `title` names the section; `statuses`
+   * says where an item stands, and each one is phrased as an observation about
+   * a measurement rather than as a verdict on the company.
+   */
+  watch: {
+    title: string;
+    intro: string;
+    openedIn: string;
+    then: string;
+    now: string;
+    statuses: Record<string, string>;
+  };
   warnings: Record<string, string>;
   confidence: Record<Confidence, string>;
   patternConfidence: Record<Confidence, string>;

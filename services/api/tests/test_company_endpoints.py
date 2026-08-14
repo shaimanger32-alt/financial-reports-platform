@@ -134,6 +134,9 @@ def test_the_latest_report_carries_every_version(loaded_client: TestClient) -> N
         # cannot be audited without knowing which tiering produced it.
         "tiering",
         "pulse",
+        # Section 28: a watch item's status is a judgement, so the rules that
+        # reached it have to travel with it like every other version.
+        "watch",
     }
     assert all(versions.values())
 

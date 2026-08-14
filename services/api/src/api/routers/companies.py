@@ -67,6 +67,9 @@ def _to_analysis(snapshot: Any, period: Any) -> ReportAnalysis:
         identities=payload.get("identities", []),
         restatements=payload.get("restatements", []),
         pulse=payload.get("pulse", []),
+        # Absent on a snapshot generated before report memory existed, which is
+        # not the same as a period with nothing left to check.
+        watch_items=payload.get("watch_items", []),
         generated_at=snapshot.generated_at.isoformat(),
     )
 

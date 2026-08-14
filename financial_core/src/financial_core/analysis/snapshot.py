@@ -43,6 +43,7 @@ from financial_core.signals import (
 )
 from financial_core.signals.rules import RULE_VERSION
 from financial_core.validation import IdentityCheck, check_all
+from financial_core.watch import WATCH_VERSION, WatchItem, open_items, review
 
 # v2 added patterns. A snapshot now says more than it did, so it is a different
 # analysis and gets a different version rather than quietly replacing v1 in
@@ -207,6 +208,8 @@ class SnapshotVersions:
     pulse: str
     tiering: str
     """Which market's tiering decided whether each metric is CORE (decision 0011)."""
+    watch: str = WATCH_VERSION
+    """The lifecycle rules that decided each watch item's status."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,6 +228,12 @@ class AnalysisSnapshot:
     identities: tuple[IdentityView, ...] = ()
     restatements: tuple[RestatementView, ...] = ()
     pulse: tuple[PulseView, ...] = ()
+    watch_items: tuple[WatchItem, ...] = ()
+    """What earlier periods asked this one to check, as it stands now.
+
+    Derived rather than accumulated: the whole sequence is rebuilt from the
+    stored periods on every run, so a formula or rule change reruns the memory
+    with it and `make snapshots` stays idempotent."""
 
     @property
     def broken_identities(self) -> tuple[IdentityView, ...]:
@@ -258,7 +267,32 @@ class AnalysisSnapshot:
             "identities": [asdict(identity) for identity in self.identities],
             "restatements": [asdict(item) for item in self.restatements],
             "pulse": [asdict(band) for band in self.pulse],
+            "watch_items": [_watch_payload(item) for item in self.watch_items],
         }
+
+
+def _watch_payload(item: WatchItem) -> dict[str, Any]:
+    """A watch item as JSON, with both readings kept side by side.
+
+    The opening reading travels with the current one on purpose: "collection
+    lengthened 14 days, and now 22" is the whole content of the item, and a
+    payload carrying only the latest figure would leave the page unable to say
+    what improved.
+    """
+    return {
+        "source_code": item.source_code,
+        "status": item.status.value,
+        "status_reason": item.status_reason,
+        "opened_in_period": item.opened_in_period,
+        "reviewed_in_period": item.reviewed_in_period,
+        "resolved_in_period": item.resolved_in_period,
+        "metric_code": item.opened_from.metric_code,
+        "opened_from": asdict(item.opened_from),
+        "current": None if item.current is None else asdict(item.current),
+        "history": [
+            {"period_code": period, "status": status.value} for period, status in item.history
+        ],
+    }
 
 
 def _to_metric_view(code: str, result: Any, tiering: MarketTiering) -> MetricView:
@@ -411,6 +445,7 @@ def build_snapshot(
     tiering: MarketTiering = DEFAULT_TIERING,
     restatements: Sequence[RestatementView] = (),
     dimensions: Sequence[PulseDimension] = DIMENSIONS,
+    carried_watch_items: Sequence[WatchItem] = (),
 ) -> AnalysisSnapshot:
     """Compute everything for one period and package it.
 
@@ -418,6 +453,10 @@ def build_snapshot(
     know this, and here is which input was missing" is information a reader is
     entitled to, and silently omitting the row would read as though the metric
     did not exist (spec section 4.4).
+
+    `carried_watch_items` are the items still open coming into this period. They
+    are reviewed against it before this period's own patterns raise new ones, so
+    a pattern that fires again does not review the item it just opened.
     """
     results = compute_all(facts, period)
     metrics = tuple(_to_metric_view(code, results[code], tiering) for code in sorted(results))
@@ -433,10 +472,14 @@ def build_snapshot(
     # A pattern whose premise is a fact about the level rather than about how
     # unusual a move was needs the values themselves, not only the signals.
     metric_values = {metric.code: metric.value for metric in metrics}
-    patterns = tuple(
-        _to_pattern_view(pattern)
-        for pattern in evaluate_patterns(raised, pattern_rules, sector, metric_values)
-    )
+    found = evaluate_patterns(raised, pattern_rules, sector, metric_values)
+    patterns = tuple(_to_pattern_view(pattern) for pattern in found)
+
+    reviewed = [
+        review(item, period.code, raised, series_by_metric, thresholds, sector)
+        for item in carried_watch_items
+    ]
+    opened = open_items(company_id, period.code, found, raised, series_by_metric)
 
     return AnalysisSnapshot(
         company_id=company_id,
@@ -452,6 +495,7 @@ def build_snapshot(
             patterns=PATTERN_VERSION,
             pulse=PULSE_VERSION,
             tiering=f"{tiering.code}@{tiering.version}",
+            watch=WATCH_VERSION,
         ),
         line_items=_collect_line_items(facts, period, tiering),
         metrics=metrics,
@@ -467,5 +511,15 @@ def build_snapshot(
                 signal_codes=reading.signal_codes,
             )
             for reading in read_pulse(raised, available, dimensions).readings
+        ),
+        # An item already tracking a metric is not opened a second time because
+        # its pattern fired again; the review it just received is the answer.
+        watch_items=(
+            *reviewed,
+            *(
+                item
+                for item in opened
+                if item.source_code not in {carried.source_code for carried in reviewed}
+            ),
         ),
     )

@@ -1,0 +1,104 @@
+/* Two readings of one measurement, side by side. The status word carries the
+   direction; colour only repeats it, because colour alone tells nobody
+   anything. */
+
+.block {
+  margin-bottom: 3rem;
+}
+
+.title {
+  font-family: var(--font-assistant), system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.5rem;
+  border-bottom: var(--hairline);
+}
+
+.intro {
+  font-size: 0.88rem;
+  color: var(--ink-muted);
+  margin: 0 0 1.2rem;
+  max-width: 44ch;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.item {
+  padding: 0.9rem 0.35rem;
+  border-bottom: var(--hairline);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.metric {
+  font-weight: 600;
+}
+
+.improved,
+.worsened,
+.neutral {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.improved {
+  color: var(--positive);
+}
+
+.worsened {
+  color: var(--watch);
+}
+
+.neutral {
+  color: var(--ink-muted);
+}
+
+.readings {
+  display: flex;
+  gap: 2.5rem;
+  margin: 0.6rem 0 0;
+}
+
+.reading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.reading dt {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.reading dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 30rem) {
+  .readings {
+    gap: 1.5rem;
+  }
+}
