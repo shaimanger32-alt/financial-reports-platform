@@ -55,6 +55,13 @@ class Pattern:
     optional_signal_codes: tuple[str, ...] = ()
     """Matched signals that corroborate the pattern without being required. Kept
     apart from the required ones so a reader can tell what carried it."""
+    independent_signal_count: int = 0
+    """How many of the matched signals are independent observations rather than
+    the same arithmetic seen twice. This is what confidence rests on, not the
+    raw count."""
+    dependent_signals_counted_once: tuple[str, ...] = ()
+    """Groups of matched signals that share their inputs, recorded so the payload
+    can distinguish corroboration from restatement."""
 
     @property
     def all_signal_codes(self) -> tuple[str, ...]:

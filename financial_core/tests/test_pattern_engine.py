@@ -87,11 +87,27 @@ HILAN_ACCRUALS = Signal(
 )
 
 
-class TestTheCaseItWasWrittenFor:
-    """Hilan 2025-Q4: two signals that are two views of one thing."""
+HILAN_CASH_DETERIORATION = signal(
+    "SIG_OPERATING_CASH_DETERIORATION", "operating_cash_flow_growth_yoy"
+)
 
-    def test_p2_fires_on_hilan(self) -> None:
-        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS])
+# Hilan's profit fell 1.9% in the quarter its cash conversion collapsed.
+HILAN_METRICS = {"net_income_growth_yoy": -0.019, "operating_cash_flow_growth_yoy": -0.31}
+
+PROFIT_ROSE = {"net_income_growth_yoy": 0.12, "operating_cash_flow_growth_yoy": 0.01}
+PROFIT_ROSE_CASH_FELL = {"net_income_growth_yoy": 0.12, "operating_cash_flow_growth_yoy": -0.08}
+
+
+class TestProfitMustHaveRisen:
+    """P2's premise, decided 2026-08-14.
+
+    Spec section 16 words the pattern as profit up while cash does not follow.
+    Where profit fell too, the event is deterioration and the sentence would be
+    false, so the premise is a hard requirement rather than corroboration.
+    """
+
+    def test_p2_fires_when_profit_rose_and_cash_did_not_follow(self) -> None:
+        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=PROFIT_ROSE)
 
         assert pattern is not None
         assert pattern.code == "P2_EARNINGS_QUALITY"
@@ -100,22 +116,104 @@ class TestTheCaseItWasWrittenFor:
             "SIG_ACCRUALS_ELEVATED",
         )
 
-    def test_two_independent_signals_earn_medium_confidence(self) -> None:
-        """Spec section 20: several metrics pointing the same way is MEDIUM."""
-        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS])
+    def test_hilan_2025_q4_no_longer_fires(self) -> None:
+        """The regression case. Hilan is why the looser rule existed: its cash
+        conversion fell 4.4 robust units while its profit fell 1.9%. Both moving
+        the wrong way is deterioration, not a gap between profit and cash."""
+        assert (
+            evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=HILAN_METRICS)
+            is None
+        )
+
+    def test_a_material_profit_fall_does_not_fire_either(self) -> None:
+        metrics = {"net_income_growth_yoy": -0.089, "operating_cash_flow_growth_yoy": -0.2}
+
+        assert (
+            evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=metrics) is None
+        )
+
+    def test_flat_profit_is_not_risen_profit(self) -> None:
+        metrics = {"net_income_growth_yoy": 0.0, "operating_cash_flow_growth_yoy": -0.2}
+
+        assert (
+            evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=metrics) is None
+        )
+
+    def test_an_unknown_profit_move_is_not_a_met_premise(self) -> None:
+        """Non-negotiable 1: a null is not a small number, and a premise nobody
+        could check has not been met."""
+        metrics: dict[str, float | None] = {"net_income_growth_yoy": None}
+
+        assert (
+            evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=metrics) is None
+        )
+
+    def test_the_engine_invents_nothing_when_given_no_metrics(self) -> None:
+        assert evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS]) is None
+
+    def test_profit_and_cash_rising_together_is_not_a_pattern(self) -> None:
+        """No divergence signal fired, so there is nothing to read together."""
+        metrics = {"net_income_growth_yoy": 0.12, "operating_cash_flow_growth_yoy": 0.13}
+
+        assert evaluate_pattern(P2, [], metrics=metrics) is None
+
+
+class TestDependentSignalsAreOneObservation:
+    """`cash_conversion` is OCF over profit; `accruals_proxy` is profit less OCF
+    over assets. Two views of the same two inputs are not two findings."""
+
+    def test_the_dependent_pair_is_counted_once(self) -> None:
+        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=PROFIT_ROSE)
 
         assert pattern is not None
+        assert pattern.independent_signal_count == 1
+        assert pattern.dependent_signals_counted_once == (
+            "SIG_ACCRUALS_ELEVATED + SIG_EARNINGS_CASH_DIVERGENCE",
+        )
+
+    def test_the_same_arithmetic_twice_cannot_reach_medium_confidence(self) -> None:
+        """Spec section 20 grants MEDIUM to several *independent* metrics."""
+        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=PROFIT_ROSE)
+
+        assert pattern is not None
+        assert pattern.confidence is Confidence.LOW
+
+    def test_a_genuinely_independent_second_view_earns_medium(self) -> None:
+        pattern = evaluate_pattern(
+            P2,
+            [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS, HILAN_CASH_DETERIORATION],
+            metrics=PROFIT_ROSE,
+        )
+
+        assert pattern is not None
+        assert pattern.independent_signal_count == 2
         assert pattern.confidence is Confidence.MEDIUM
 
+
+class TestTheWordingFollowsTheNumbers:
+    def test_cash_flow_that_merely_lagged_gets_the_base_wording(self) -> None:
+        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=PROFIT_ROSE)
+
+        assert pattern is not None
+        assert pattern.message_key == "pattern.earnings_quality"
+
+    def test_cash_flow_that_actually_fell_gets_its_own_wording(self) -> None:
+        pattern = evaluate_pattern(
+            P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=PROFIT_ROSE_CASH_FELL
+        )
+
+        assert pattern is not None
+        assert pattern.message_key == "pattern.earnings_quality.cash_declined"
+
     def test_the_pattern_is_no_more_severe_than_what_it_is_made_of(self) -> None:
-        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS])
+        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=PROFIT_ROSE)
 
         assert pattern is not None
         assert pattern.severity is Severity.WATCH
 
     def test_the_pattern_says_nobody_has_read_the_filing(self) -> None:
         """Until phase 6 there is no evidence, and no is not the same as none."""
-        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS])
+        pattern = evaluate_pattern(P2, [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], metrics=PROFIT_ROSE)
 
         assert pattern is not None
         assert pattern.explanation_status is ExplanationStatus.NOT_SEARCHED
@@ -225,7 +323,7 @@ class TestWhatThePatternCarries:
             HILAN_ACCRUALS,
             signal("SIG_PROFIT_ACCELERATION", "net_income_growth_yoy", severity=Severity.POSITIVE),
         ]
-        pattern = evaluate_pattern(P2, signals)
+        pattern = evaluate_pattern(P2, signals, metrics=PROFIT_ROSE)
 
         assert pattern is not None
         assert pattern.optional_signal_codes == ("SIG_PROFIT_ACCELERATION",)
@@ -240,7 +338,7 @@ class TestWhatThePatternCarries:
             HILAN_ACCRUALS,
             signal("SIG_OPERATING_CASH_DETERIORATION", "operating_cash_flow_growth_yoy"),
         ]
-        pattern = evaluate_pattern(P2, signals)
+        pattern = evaluate_pattern(P2, signals, metrics=PROFIT_ROSE)
 
         assert pattern is not None
         assert pattern.confidence is not Confidence.HIGH
@@ -253,7 +351,9 @@ class TestWhatThePatternCarries:
             message_key="pattern.test",
             severity=Severity.CRITICAL,
         )
-        patterns = evaluate_all([HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], (P2, critical))
+        patterns = evaluate_all(
+            [HILAN_CASH_DIVERGENCE, HILAN_ACCRUALS], (P2, critical), metrics=PROFIT_ROSE
+        )
 
         assert [p.code for p in patterns] == ["P_CRITICAL", "P2_EARNINGS_QUALITY"]
 

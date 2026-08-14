@@ -13,6 +13,8 @@ from financial_core.patterns.rules import (
     EXTENDED_PATTERNS,
     PATTERN_VERSION,
     PATTERNS_BY_CODE,
+    Comparison,
+    MetricCondition,
     PatternRule,
 )
 
@@ -22,7 +24,9 @@ __all__ = [
     "EXTENDED_PATTERNS",
     "PATTERNS_BY_CODE",
     "PATTERN_VERSION",
+    "Comparison",
     "ExplanationStatus",
+    "MetricCondition",
     "Pattern",
     "PatternRule",
     "evaluate_all",

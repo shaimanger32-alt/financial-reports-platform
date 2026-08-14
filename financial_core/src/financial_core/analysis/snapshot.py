@@ -131,6 +131,12 @@ class PatternView:
     signal_codes: tuple[str, ...]
     optional_signal_codes: tuple[str, ...]
     explanation_status: str
+    independent_signal_count: int = 0
+    """Matched signals that are separate observations rather than the same
+    arithmetic seen twice. Confidence rests on this, not on the raw count."""
+    dependent_signals_counted_once: tuple[str, ...] = ()
+    """Matched signals that share their inputs, so a reader of the payload can
+    tell corroboration from a restatement of the same figures."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -386,6 +392,8 @@ def _to_pattern_view(pattern: Pattern) -> PatternView:
         signal_codes=pattern.signal_codes,
         optional_signal_codes=pattern.optional_signal_codes,
         explanation_status=pattern.explanation_status.value,
+        independent_signal_count=pattern.independent_signal_count,
+        dependent_signals_counted_once=pattern.dependent_signals_counted_once,
     )
 
 
@@ -422,8 +430,12 @@ def build_snapshot(
 
     raised = evaluate_all(rules, series_by_metric, thresholds, sector)
     signals = tuple(_to_signal_view(signal) for signal in raised)
+    # A pattern whose premise is a fact about the level rather than about how
+    # unusual a move was needs the values themselves, not only the signals.
+    metric_values = {metric.code: metric.value for metric in metrics}
     patterns = tuple(
-        _to_pattern_view(pattern) for pattern in evaluate_patterns(raised, pattern_rules, sector)
+        _to_pattern_view(pattern)
+        for pattern in evaluate_patterns(raised, pattern_rules, sector, metric_values)
     )
 
     return AnalysisSnapshot(

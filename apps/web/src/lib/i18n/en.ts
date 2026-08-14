@@ -128,8 +128,12 @@ export const en: Dictionary = {
 
   patterns: {
     "pattern.earnings_quality": {
-      title: "A gap between accounting profit and cash",
-      body: "Several measures point at the same thing: profit is converting to cash less well than it did. This is an observation about the relationship between the two, not a claim that the profit is wrong.",
+      title: "Profit rose, cash did not keep up",
+      body: "Net profit rose, but operating cash flow did not improve at the same pace, and the measures of conversion to cash weakened. This is an observation about the relationship between the two, not a claim that the profit is wrong.",
+    },
+    "pattern.earnings_quality.cash_declined": {
+      title: "Profit rose while cash flow fell",
+      body: "Net profit rose while operating cash flow fell, opening a gap between accounting profit and the cash the business generated. This is an observation about the relationship between the two, not a claim that the profit is wrong.",
     },
     "pattern.growth_quality": {
       title: "Growth arrived with questions attached",

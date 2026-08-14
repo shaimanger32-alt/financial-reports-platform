@@ -17,12 +17,56 @@ file instead of an audit of the codebase.
 """
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Final
 
 from financial_core.metrics.catalogue import MetricTier
 from financial_core.signals.model import Severity
 
-PATTERN_VERSION: Final[str] = "v1"
+PATTERN_VERSION: Final[str] = "v2"
+
+
+class Comparison(StrEnum):
+    """How a metric's value is tested against a threshold."""
+
+    GREATER_THAN = "greater_than"
+    GREATER_OR_EQUAL = "greater_or_equal"
+    LESS_THAN = "less_than"
+    LESS_OR_EQUAL = "less_or_equal"
+
+
+@dataclass(frozen=True, slots=True)
+class MetricCondition:
+    """A condition on a computed metric's value.
+
+    Signals answer "is this move unlike the company's usual?", which is a
+    comparison against its own history. Some premises are not that question at
+    all: P2's wording rests on profit having *risen*, and a company whose profit
+    grows steadily every year never raises an unusual-growth signal while its
+    profit rises the whole time. Expressing that premise as a signal would say
+    something different from what the pattern claims.
+
+    A null value never satisfies a condition. Missing data is not a small value
+    (non-negotiable 1), and a premise that cannot be checked has not been met.
+    """
+
+    metric_code: str
+    comparison: Comparison
+    threshold: float
+    note: str | None = None
+
+    def is_met_by(self, value: float | None) -> bool:
+        if value is None:
+            return False
+        match self.comparison:
+            case Comparison.GREATER_THAN:
+                return value > self.threshold
+            case Comparison.GREATER_OR_EQUAL:
+                return value >= self.threshold
+            case Comparison.LESS_THAN:
+                return value < self.threshold
+            case Comparison.LESS_OR_EQUAL:
+                return value <= self.threshold
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,9 +88,30 @@ class PatternRule:
     lengthened while revenue did not grow at all. The reader would then be told
     that growth needs checking at a company that did not grow. A pattern may not
     assert something the signals did not observe (section 42)."""
+    prerequisite_metrics: tuple[MetricCondition, ...] = ()
+    """Conditions on metric values that must **all** hold, alongside
+    `prerequisite_signals`. Same role — the premise the wording rests on — for a
+    premise that is a fact about the level rather than about how unusual the move
+    was. The engine still concludes nothing the metrics did not already say; it
+    reads a computed value and compares it with a named constant."""
+    dependent_signal_groups: tuple[frozenset[str], ...] = ()
+    """Sets of member signals that are not independent evidence of each other.
+
+    Two signals derived from the same inputs are one observation seen twice, and
+    counting them as two corroborating views would inflate confidence the data
+    did not earn. The engine records which groups a pattern leaned on, so a
+    reader of the payload can tell corroboration from restatement of the same
+    arithmetic (spec section 20)."""
     optional_signals: tuple[str, ...] = ()
     """Signals that corroborate the pattern and are recorded when present, but
     never decide whether it fires."""
+    variant_message_keys: tuple[tuple[MetricCondition, str], ...] = ()
+    """Alternative wording keys, each guarded by a condition, first match wins.
+
+    One pattern can be true in two ways that a reader would not describe with the
+    same sentence: profit outrunning cash flow is not the same event as profit
+    rising while cash flow falls. The engine selects a key and never a sentence,
+    so section 42 still holds."""
     minimum_periods: int = 1
     """How long the strongest member signal must have persisted."""
     severity: Severity | None = None
@@ -64,28 +129,62 @@ class PatternRule:
 
 # --- P2 -----------------------------------------------------------------------
 #
-# PENDING SHAY'S CONFIRMATION. Spec section 16 words P2 as "Net Income ↑ with
-# OCF ↓", and taken literally that rule does not fire on the one case in the
-# data it was written for: Hilan 2025-Q4 has cash conversion down 0.26 against a
-# usual +0.17, accruals up 2.23pp against a usual -1.62pp — and net income down
-# 1.9%. Requiring profit to rise would leave the pattern silent everywhere we
-# can currently check it.
+# DECIDED BY SHAY, 2026-08-14. The literal reading of spec section 16, with
+# rising profit as a hard premise rather than as corroboration.
 #
-# So the rule below is written on the divergence itself rather than on the
-# direction of profit: two of the three views of the gap between accounting
-# profit and cash. Flipping this back to the literal reading is a change to
-# `required_signals` and `minimum_required` on this one rule.
+# The rule was first written on the divergence alone, because at the time the
+# only case in the data was Hilan 2025-Q4, whose profit *fell* 1.9%, and
+# requiring profit to rise would have left the pattern silent everywhere it
+# could be checked. Forty-two American companies later that argument is gone:
+# the literal reading fires on 13 of the 19 periods the looser rule matched.
+#
+# What decided it was not coverage but wording. P2 says profit rose and cash did
+# not follow. Where profit and cash flow both fell, the event is deterioration,
+# and the sentence would be false. A pattern may not assert something the
+# numbers do not support, whatever it costs in matches.
+
+_PROFIT_ROSE: Final[MetricCondition] = MetricCondition(
+    metric_code="net_income_growth_yoy",
+    comparison=Comparison.GREATER_THAN,
+    threshold=0.0,
+    note="A ratio, so zero is the sign boundary and not a tuned threshold. "
+    "Profit that fell 1.9% is not profit that rose, and no tolerance band is "
+    "applied to keep a historical case: that would be fitting the definition of "
+    "the phenomenon to one company.",
+)
+
+_CASH_FLOW_FELL: Final[MetricCondition] = MetricCondition(
+    metric_code="operating_cash_flow_growth_yoy",
+    comparison=Comparison.LESS_THAN,
+    threshold=0.0,
+    note="Selects the wording only. Cash flow that fell outright and cash flow "
+    "that grew more slowly than profit are both P2, and a reader would not "
+    "describe them with the same sentence. Reading the sign is safe because a "
+    "growth ratio is null whenever its base was not positive (section 13.1), so "
+    "a negative value can only mean a fall from a positive base — never an "
+    "improvement measured from a negative one.",
+)
 
 CORE_PATTERNS: Final[tuple[PatternRule, ...]] = (
     PatternRule(
         code="P2_EARNINGS_QUALITY",
+        prerequisite_metrics=(_PROFIT_ROSE,),
         required_signals=(
             "SIG_EARNINGS_CASH_DIVERGENCE",
             "SIG_ACCRUALS_ELEVATED",
             "SIG_OPERATING_CASH_DETERIORATION",
         ),
         minimum_required=2,
+        # `cash_conversion` is OCF over net income; `accruals_proxy` is net
+        # income less OCF over average assets. Both are functions of the same two
+        # inputs, so when the gap widens they move together as a matter of
+        # arithmetic rather than as two findings. The methodology already
+        # describes Hilan's pair as "the same event measured from two sides".
+        dependent_signal_groups=(
+            frozenset({"SIG_EARNINGS_CASH_DIVERGENCE", "SIG_ACCRUALS_ELEVATED"}),
+        ),
         message_key="pattern.earnings_quality",
+        variant_message_keys=((_CASH_FLOW_FELL, "pattern.earnings_quality.cash_declined"),),
         tier=MetricTier.CORE,
         optional_signals=("SIG_PROFIT_ACCELERATION",),
         note="Every input is a concept all issuers tag, so this pattern works "
