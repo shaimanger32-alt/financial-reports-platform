@@ -25,6 +25,7 @@ from ingestion.config import IngestionSettings, get_ingestion_settings
 from ingestion.providers.base import (
     FactBatch,
     FactQuery,
+    FilingReference,
     ProviderConcept,
     ProviderEntity,
     ProviderError,
@@ -174,13 +175,57 @@ class SecEdgarClient:
             source_reference=f"companyfacts/CIK{cik}",
         )
 
-    def fetch_document(self, provider_filing_id: str) -> bytes:
-        """Full filing documents are not fetched yet.
+    def list_filings(self, entity_id: str, forms: Sequence[str] = ()) -> list[FilingReference]:
+        """Recent filings for one company, newest first.
 
-        EDGAR does serve them, and they are what phase 6 evidence will need. It
-        is deliberately not wired up here: a document pipeline is its own piece
-        of work, and half of one would invite a caller to depend on it.
+        EDGAR's `submissions` endpoint carries the primary document name for
+        each filing, which is what turns an accession number into a URL. Without
+        it the archive path is a directory listing to be guessed at.
+        """
+        cik = normalise_cik(entity_id)
+        payload = self._get(f"{self._settings.sec_edgar_data_base_url}/submissions/CIK{cik}.json")
+        recent = json.loads(payload).get("filings", {}).get("recent", {})
+
+        wanted = {form.upper() for form in forms}
+        references: list[FilingReference] = []
+        for index, form in enumerate(recent.get("form", [])):
+            if wanted and form.upper() not in wanted:
+                continue
+            accession = recent["accessionNumber"][index]
+            document = recent.get("primaryDocument", [""] * (index + 1))[index]
+            if not document:
+                continue
+            references.append(
+                FilingReference(
+                    provider_filing_id=accession,
+                    form=form,
+                    filed=recent.get("filingDate", [""] * (index + 1))[index],
+                    period_end=recent.get("reportDate", [""] * (index + 1))[index],
+                    document_url=(
+                        f"{self._settings.sec_edgar_archives_base_url}/data/"
+                        f"{int(cik)}/{accession.replace('-', '')}/{document}"
+                    ),
+                )
+            )
+        return references
+
+    def fetch_document(self, provider_filing_id: str) -> bytes:
+        """A filing's primary document.
+
+        Needs the company to resolve the archive path, which an accession number
+        alone does not give. Callers holding a `FilingReference` should use
+        `fetch_document_at`; this exists to satisfy the provider protocol and
+        says plainly what it is missing rather than guessing a URL.
         """
         raise ProviderNotSupportedError(
-            "SEC EDGAR document retrieval is not implemented; facts only."
+            "a filing's archive path needs its company and primary document name; "
+            "use list_filings to get a FilingReference, then fetch_document_at"
         )
+
+    def fetch_document_at(self, url: str) -> bytes:
+        """The document at a URL from `list_filings`.
+
+        Paced like every other request. A 10-Q runs to a few megabytes, and
+        these are a public regulator's servers.
+        """
+        return self._get(url)

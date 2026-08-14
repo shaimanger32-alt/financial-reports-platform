@@ -35,6 +35,14 @@ class IngestionSettings(BaseSettings):
         default="https://data.sec.gov/api/xbrl",
         description="SEC EDGAR structured data root. Configuration, never a constant in code.",
     )
+    sec_edgar_data_base_url: str = Field(
+        default="https://data.sec.gov",
+        description="SEC's structured data host, which serves the submissions index.",
+    )
+    sec_edgar_archives_base_url: str = Field(
+        default="https://www.sec.gov/Archives/edgar",
+        description="Where SEC publishes the filings themselves.",
+    )
     sec_edgar_files_base_url: str = Field(
         default="https://www.sec.gov/files",
         description="Where SEC publishes its static reference files, such as the ticker index.",

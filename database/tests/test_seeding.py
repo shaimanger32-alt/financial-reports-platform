@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 from database.models import ConceptMapping, MetricDefinition
 from financial_core.metrics import METRICS_BY_CODE
 from ingestion.providers.magna_xbrl.concept_map import CONCEPT_CHAINS
+from ingestion.providers.magna_xbrl.concept_map import PROVIDER_CODE_DEFAULT as MAGNA
+from ingestion.providers.sec_edgar.concept_map import CONCEPT_CHAINS as SEC_EDGAR_CHAINS
+from ingestion.providers.sec_edgar.concept_map import PROVIDER_CODE_DEFAULT as SEC_EDGAR
 from ingestion.seeding import seed_reference_data
 
 pytestmark = pytest.mark.integration
@@ -40,15 +43,23 @@ def test_chain_order_survives_the_round_trip(session: Session) -> None:
     first once the data is in the database (decision 0009)."""
     seed_reference_data(session)
 
-    stored = session.scalars(
-        select(ConceptMapping.raw_concept)
-        .where(ConceptMapping.metric_code == "trade_receivables")
-        .where(ConceptMapping.company_id.is_(None))
-        .order_by(ConceptMapping.priority)
-    ).all()
+    def chain_for(provider: str) -> tuple[str, ...]:
+        return tuple(
+            session.scalars(
+                select(ConceptMapping.raw_concept)
+                .where(ConceptMapping.metric_code == "trade_receivables")
+                .where(ConceptMapping.provider == provider)
+                .where(ConceptMapping.company_id.is_(None))
+                .order_by(ConceptMapping.priority)
+            ).all()
+        )
 
-    assert tuple(stored) == CONCEPT_CHAINS["trade_receivables"]
-    assert stored[0] == "ifrs-full:CurrentTradeReceivables"
+    # Every provider is seeded, so a chain is only a chain within its own
+    # taxonomy. Reading them together would interleave IFRS and us-gaap by
+    # priority and destroy the ordering the fallback depends on.
+    assert chain_for(MAGNA) == CONCEPT_CHAINS["trade_receivables"]
+    assert chain_for(SEC_EDGAR) == SEC_EDGAR_CHAINS["trade_receivables"]
+    assert chain_for(MAGNA)[0] == "ifrs-full:CurrentTradeReceivables"
 
 
 def test_the_taxonomy_namespace_is_recorded(session: Session) -> None:

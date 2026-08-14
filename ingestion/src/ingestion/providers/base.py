@@ -116,6 +116,23 @@ class ProviderFact:
 
 
 @dataclass(frozen=True, slots=True)
+class FilingReference:
+    """A filing, and where its document can be read.
+
+    Facts alone cannot locate a document: an accession number identifies a
+    filing but not the file inside it, and the archive path needs both. This is
+    what a provider returns so the evidence engine can fetch what a company
+    actually wrote.
+    """
+
+    provider_filing_id: str
+    form: str
+    filed: str
+    period_end: str
+    document_url: str
+
+
+@dataclass(frozen=True, slots=True)
 class FactQuery:
     """What to ask a provider for."""
 

@@ -68,6 +68,14 @@ export interface Dictionary {
     worthWatching: string;
     sourceInFiling: string;
     notEnoughHistory: string;
+    searchPlaceholder: string;
+    searchLabel: string;
+    noMatches: string;
+    /** Templates rather than functions: these cross into a client component,
+        and a React Server Component may not pass a function over that
+        boundary. `{shown}` and `{total}` are replaced where they are shown. */
+    searchCountAll: string;
+    searchCountFiltered: string;
     periods: string;
     quarters: string;
     years: string;

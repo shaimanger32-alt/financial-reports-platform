@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { CompanySearch } from "@/components/CompanySearch";
 import { ApiUnavailableError, fetchCompanies } from "@/lib/api";
 import { getDictionary, toLocale } from "@/lib/i18n";
 
@@ -32,25 +31,21 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
 
       <section>
         <h2 className={styles.sectionTitle}>{t.ui.companies}</h2>
-        <ul className={styles.list}>
-          {companies.map((company) => (
-            <li key={company.id} className={styles.listItem}>
-              <Link href={`/${locale}/companies/${company.id}`} className={styles.listLink}>
-                {/* The legal name is the company's own, in its own language.
-                    It is never translated: it is what the filing says. */}
-                <span className={`${styles.companyName} name`}>
-                  {locale === "he" ? company.legal_name : (company.name_en ?? company.legal_name)}
-                </span>
-                <span className={styles.companyMeta}>
-                  {company.sector}
-                  {company.sector && <span className={styles.dot}>·</span>}
-                  <span className="ltr tnum">{company.id}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-        {companies.length === 0 && <p className={styles.empty}>{t.ui.noCompanies}</p>}
+        {companies.length === 0 ? (
+          <p className={styles.empty}>{t.ui.noCompanies}</p>
+        ) : (
+          <CompanySearch
+            companies={companies}
+            locale={locale}
+            labels={{
+              placeholder: t.ui.searchPlaceholder,
+              ariaLabel: t.ui.searchLabel,
+              noMatches: t.ui.noMatches,
+              countAll: t.ui.searchCountAll,
+              countFiltered: t.ui.searchCountFiltered,
+            }}
+          />
+        )}
       </section>
     </main>
   );

@@ -84,7 +84,8 @@ requests a second. That is the whole access requirement.
 
 ## Where the project stands
 
-Phases 0 to 4 are complete. Phase 5 is half done.
+Phases 0 to 4 are complete. **Phase 5 is nearly done** — only watch items
+(section 28) remain of its deliverables. Phase 6 has not started.
 
 Working end to end, from the live SEC EDGAR API to stored analysis:
 
@@ -101,6 +102,13 @@ Working end to end, from the live SEC EDGAR API to stored analysis:
 - **Periods are switchable**, quarters and years in separate rows and never
   mixed on one axis. Each has its own URL, which matters because most patterns
   the engine finds are not in the latest quarter.
+- **Report Pulse** (section 6.1): five dimensions, each read off the signals
+  that already fired in it, so it introduces no threshold of its own. A band
+  that cannot be read says "not reported" rather than "stable" — JPMorgan's
+  working capital, because a bank has no collection days or inventory.
+- **Search** on the home page, filtering in the browser over the list already
+  fetched. A deliberate call at 42 companies; it becomes a server query when the
+  list is thousands, without the component changing shape.
 - **Restatements are surfaced, not resolved silently** (decision 0009, section
   21.3). A calculation uses the later filing's value; the snapshot and the API
   carry both, with the filings they came from. 4,413 across 49 companies.
@@ -130,9 +138,10 @@ Hebrew page keeps its own punctuation.
 2. **P3-P6.** P6 is newly unblocked: `dilution_yoy` resolves for 90% of the US
    set, against three or four Israeli entities. P3 and P5 still need new signal
    rules, and those need thresholds only Shay can set.
-3. **Report Pulse** (section 6.1), watch items, search, sector profiles. Sector
-   is null for every US company — SEC's ticker index carries none — so section 18
-   needs another source.
+3. **Watch items** (section 28) — the last phase 5 deliverable. A pattern
+   creates one; the next quarter says whether it resolved. Needs no new
+   threshold. **Sector profiles** (section 18) are blocked instead: sector is
+   null for every US company, because SEC's ticker index carries none.
 4. The evidence engine (phase 6) and everything downstream of it.
 5. **An MCP server** (decision 0012). A read surface over stored analysis —
    snapshots, signals, patterns, identities, restatements and, once phase 6
@@ -142,6 +151,28 @@ Hebrew page keeps its own punctuation.
    about why". It is a thin adapter over `services/api`, so waiting costs
    nothing — but **the API contract is the MCP contract**, which means no
    endpoint may start returning prose.
+
+**Phase 6, steps 1-4 are built** and are entirely deterministic
+(`financial_core/evidence/`):
+
+- **Documents.** `SecEdgarClient.list_filings` turns a company into filing
+  references with real archive URLs; `fetch_document_at` retrieves one. Verified
+  against Honeywell's 10-Q: 2.75 MB of markup, 285,462 characters of text.
+- **Sections and chunks**, with **character offsets that reproduce their own
+  text exactly**. That invariant is what the validator rests on; without it,
+  citation checking degrades to fuzzy matching. 106 sections and 127 chunks on
+  the real filing, MD&A, notes and segments all recognised.
+- **Retrieval** by metric vocabulary, deterministic and with no embedding model.
+  It is explainable — a passage was chosen because it contains _these words_,
+  which a person can check — and reproducible, which section 23 requires.
+- **The citation validator.** Four ways a model fabricates, all caught against
+  the real filing: words not in the document, real words at the wrong place, a
+  span outside the document, and a quotation from the risk factors.
+  `validate_claim` checks the model's _own prose_ for invented figures, scoped
+  to **the passages it cited** — scoped to the document, "$450 million" passed,
+  because those digits occur somewhere in 285,000 characters.
+
+**Step 5 is the only one left, and the only one needing `OPENAI_API_KEY`.**
 
 **Open decisions Shay has not made:**
 
