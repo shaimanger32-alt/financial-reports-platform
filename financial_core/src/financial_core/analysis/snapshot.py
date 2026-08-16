@@ -42,7 +42,12 @@ from financial_core.signals import (
     evaluate_all,
 )
 from financial_core.signals.rules import RULE_VERSION
-from financial_core.validation import IdentityCheck, check_all
+from financial_core.validation import (
+    IdentityCheck,
+    Observation,
+    check_all,
+    check_basics,
+)
 from financial_core.watch import WATCH_VERSION, WatchItem, open_items, review
 
 # v2 added patterns. A snapshot now says more than it did, so it is a different
@@ -163,6 +168,22 @@ class IdentityView:
 
 
 @dataclass(frozen=True, slots=True)
+class BasicFindingView:
+    """One thing basic validation noticed (spec section 21.1).
+
+    Runs here rather than in a separate tool, because a check the analysis does
+    not call is a check the analysis does not have. Electra's revenue arrived
+    scaled in thousands beside receivables scaled in units, and every stage
+    downstream treated the result as a fact (decision 0013).
+    """
+
+    issue: str
+    metric_code: str
+    period_code: str
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
 class PulseView:
     """One Report Pulse dimension, as a reader sees it (spec section 6.1).
 
@@ -228,6 +249,8 @@ class AnalysisSnapshot:
     identities: tuple[IdentityView, ...] = ()
     restatements: tuple[RestatementView, ...] = ()
     pulse: tuple[PulseView, ...] = ()
+    basic_findings: tuple[BasicFindingView, ...] = ()
+    """Section 21.1, on the path rather than beside it (decision 0013)."""
     watch_items: tuple[WatchItem, ...] = ()
     """What earlier periods asked this one to check, as it stands now.
 
@@ -267,6 +290,7 @@ class AnalysisSnapshot:
             "identities": [asdict(identity) for identity in self.identities],
             "restatements": [asdict(item) for item in self.restatements],
             "pulse": [asdict(band) for band in self.pulse],
+            "basic_findings": [asdict(finding) for finding in self.basic_findings],
             "watch_items": [_watch_payload(item) for item in self.watch_items],
         }
 
@@ -446,6 +470,7 @@ def build_snapshot(
     restatements: Sequence[RestatementView] = (),
     dimensions: Sequence[PulseDimension] = DIMENSIONS,
     carried_watch_items: Sequence[WatchItem] = (),
+    observations: Sequence[Observation] = (),
 ) -> AnalysisSnapshot:
     """Compute everything for one period and package it.
 
@@ -463,6 +488,19 @@ def build_snapshot(
 
     identities = tuple(
         _to_identity_view(check) for check in check_all(_identity_figures(facts, period))
+    )
+
+    # Section 21.1 runs on the path, not in a tool beside it. It reads every
+    # reported figure rather than the FactSet, because a filing contradicting
+    # itself is only visible while both of its values are still in view.
+    basic_findings = tuple(
+        BasicFindingView(
+            issue=finding.issue.value,
+            metric_code=finding.metric_code,
+            period_code=finding.period_code,
+            detail=finding.detail,
+        )
+        for finding in check_basics(observations)
     )
 
     available = frozenset(metric.code for metric in metrics if metric.is_available)
@@ -502,6 +540,7 @@ def build_snapshot(
         signals=signals,
         patterns=patterns,
         identities=identities,
+        basic_findings=basic_findings,
         restatements=tuple(restatements),
         pulse=tuple(
             PulseView(

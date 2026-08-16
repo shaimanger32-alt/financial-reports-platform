@@ -69,9 +69,24 @@ class TestTheChainsAreWellFormed:
         assert PROVIDER_CODE_DEFAULT == "sec_edgar"
 
 
-@pytest.mark.skipif(not SURVEY.exists(), reason="survey payload cache is not present")
+@pytest.mark.skipif(
+    not (SURVEY.exists() and any(SURVEY.glob("*.json"))),
+    reason="survey payload cache is not present",
+)
 class TestCoverageAgainstTheSurvey:
-    """The measurements the module docstring asserts, re-run."""
+    """The measurements the module docstring asserts, re-run.
+
+    **These verify decision 0011 and cannot currently run anywhere but one
+    machine.** `SURVEY` points at a scratchpad directory that belongs to a
+    session, not to the repository, so the cache is deleted without warning and
+    CI has never executed a single one of them. An existence check was not
+    enough on its own: the directory outlived its contents, the guard passed,
+    and fourteen tests divided by a company count of zero.
+
+    Fixing this properly means deciding where 47 issuer payloads should live —
+    committed, fetched on demand, or reduced to the tag sets the assertions
+    actually read.
+    """
 
     @staticmethod
     def _tagged_by_company() -> list[set[str]]:

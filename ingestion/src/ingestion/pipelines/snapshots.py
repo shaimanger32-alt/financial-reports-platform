@@ -18,6 +18,7 @@ from database.repository import (
     load_annual_metric_series,
     load_fact_set,
     load_metric_series,
+    reported_observations,
     restatements,
 )
 from financial_core.analysis import (
@@ -66,6 +67,10 @@ def generate_snapshots(
     against a quarter and produce a confident, meaningless number.
     """
     facts = load_fact_set(session, company.id)
+    # Section 21.1 runs inside the analysis now (decision 0013). It reads every
+    # reported figure rather than the FactSet, because a filing contradicting
+    # itself is only visible while both of its values are still in view.
+    observations = reported_observations(session, company.id)
     watched = sorted({rule.metric_code for rule in ALL_RULES})
     series = load_metric_series(session, company.id, watched, quarters=quarters)
     annual_series = load_annual_metric_series(session, company.id, watched)
@@ -137,6 +142,7 @@ def generate_snapshots(
                 for item in restated.get(period.code, ())
             ],
             carried_watch_items=carried[is_annual],
+            observations=observations,
         )
         _store(session, company, period_row, snapshot)
         generated.append(period.code)
